@@ -4,6 +4,16 @@
 >
 > 创建日期：2026-07-08 ｜ 当前阶段：**MVP 已跑通**（草稿→基本信息→目录→要素→分镜→黑白故事板→异步视频全链路实测，启动见 [docs/runbook/start.md](docs/runbook/start.md)）
 
+## 界面预览
+
+**工作台首页**：即刻创作入口 + 项目一览
+
+![工作台首页](docs/images/screenshot-home.jpg)
+
+**分镜视频总览**：逐镜生成视频/首帧，右侧为本章关联要素（角色/场景设定图）与分镜故事板总览
+
+![分镜视频总览](docs/images/screenshot-storyboard-video.jpg)
+
 ## 技术栈
 
 | 层 | 选型 |
