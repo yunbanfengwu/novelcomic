@@ -1,0 +1,37 @@
+/* 开发期用户切换（2026-09-17）：首页 desk-sys-float 内，风格对齐 .sys-btn */
+.usw { position: relative; display: inline-block; }
+
+.usw .sys-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+.usw-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4da3ff; flex: none;
+}
+.usw-dot.usw-admin { background: #ffb020; }
+
+.usw-caret { font-size: 10px; opacity: 0.7; }
+
+.usw-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+  min-width: 170px; padding: 6px;
+  background: rgba(20, 22, 30, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.usw-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border: 0; border-radius: 7px;
+  background: transparent; color: #e8eaf0;
+  font-size: 13px; text-align: left; cursor: pointer;
+}
+.usw-item:hover { background: rgba(255, 255, 255, 0.09); }
+.usw-item.usw-cur { background: rgba(77, 163, 255, 0.16); }
+
+.usw-name { flex: none; }
+.usw-id { flex: 1; font-size: 11px; opacity: 0.5; }
+.usw-check { color: #4da3ff; font-size: 12px; }
+
+.usw-err { padding: 6px 10px; font-size: 12px; color: #ff8484; }

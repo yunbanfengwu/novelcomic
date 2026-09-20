@@ -1,0 +1,6 @@
+/* ── 角色音色块（捏音色 + 试听） ── */
+.voice-block { margin: 10px 0; display: flex; flex-direction: column; gap: 8px; max-width: 560px; }
+.voice-line { display: flex; align-items: center; gap: 8px; }
+.voice-line input { flex: 1; }
+.voice-line button { white-space: nowrap; }
+.voice-audio { width: 100%; height: 32px; }

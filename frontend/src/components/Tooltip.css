@@ -1,0 +1,23 @@
+/* ── 全局 Tooltip 浮层：固定定位、不拦截鼠标；深底浅字 + 小箭头，随上/下方位翻转 ── */
+.tooltip-pop {
+  position: fixed; z-index: 1000; pointer-events: none;
+  max-width: 220px; padding: 6px 10px; border-radius: 8px;
+  background: #1d1d20; color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-size: 12px; line-height: 1.5; text-align: center;
+  white-space: normal; word-break: break-word;
+  box-shadow: 0 8px 24px #0009;
+  animation: tooltip-in .12s ease;
+}
+/* 水平位置全部走 --tx（transform），left 恒为 0 —— 避免 fixed+auto宽度按「视口宽度-left」收缩排版导致靠边按钮的 tooltip 被挤成多行 */
+/* top：浮在元素上方（自身上移满高 + 8px 间隙）；bottom：落在下方 8px */
+.tooltip-pop.top { transform: translate(var(--tx), 0) translate(-50%, calc(-100% - 8px)); }
+.tooltip-pop.bottom { transform: translate(var(--tx), 0) translate(-50%, 8px); }
+/* 小箭头 */
+.tooltip-pop::after {
+  content: ''; position: absolute; left: 50%; margin-left: -5px;
+  border: 5px solid transparent;
+}
+.tooltip-pop.top::after { top: 100%; border-top-color: #1d1d20; }
+.tooltip-pop.bottom::after { bottom: 100%; border-bottom-color: #1d1d20; }
+@keyframes tooltip-in { from { opacity: 0; } to { opacity: 1; } }

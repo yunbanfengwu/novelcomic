@@ -1,0 +1,26 @@
+/* 项目资产选择面板：公共图片生成弹框（.ig-wrap.picking）右侧一列，筛选钉顶、网格独立滚动 */
+.asset-picker { width: 380px; flex-shrink: 0;
+  padding-left: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.ap-title { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: .5px; }
+.ap-hint { font-size: 12px; color: var(--dim); letter-spacing: .5px; }
+/* 筛选：分组用公共 Seg（正文/视频 同款 tab），可换行；搜索框自适应 */
+.ap-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ap-filters .seg { flex-wrap: wrap; }
+.ap-search { flex: 1; min-width: 120px; height: 32px; font-size: 13px; padding: 0 10px; }
+/* minmax(0,1fr) 防爆轨：nowrap 长名字不得把列撑出容器（否则出横向滚动条） */
+.ap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  overflow-y: auto; overflow-x: hidden; align-content: start; min-height: 0; flex: 1; }
+.ap-item { border: 1px solid var(--border); background: var(--bg-soft); border-radius: 8px;
+  padding: 4px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;
+  align-items: center; min-width: 0; }
+.ap-item:hover { border-color: var(--accent); }
+.ap-item:disabled { opacity: .55; cursor: default; }
+/* 动作卡（上传 / 生成）：虚线描边 + 强调色图标，始终置顶前两位 */
+.ap-action { border-style: dashed; }
+.ap-action .ap-empty { color: var(--accent); font-size: 22px; background: transparent; }
+.ap-action .ap-name { color: var(--accent); }
+.ap-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; }
+.ap-empty { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); background: #0a0a0c; border-radius: 6px; }
+.ap-name { font-size: 11px; color: var(--text); width: 100%; min-width: 0; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

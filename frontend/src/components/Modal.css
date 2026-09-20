@@ -1,0 +1,31 @@
+/* Radix Dialog 定位层：Overlay 复用 .modal-backdrop 负责变暗，
+   Content 复用 .modal-card 外观（bg/border/radius/padding/宽度），此处只补「居中定位」。
+   —— 不改任何既有 .modal-* 规则，加载顺序独立、零冲突。 */
+.rx-modal {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 51; max-height: 88vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.rx-modal > .modal-head { flex: 0 0 auto; }
+/* 标题栏附加控件：贴在关闭按钮左侧（.modal-head 是 space-between，
+   margin-left:auto 把它推到右端、✕ 紧随其后） */
+.modal-head-extra {
+  margin-left: auto; margin-right: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.rx-modal-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.rx-modal-footer {
+  flex: 0 0 auto; padding-top: 14px; margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.rx-modal-wide { max-width: 880px; }
+/* 置顶档：抬到右侧任务队列抽屉(z:120)之上，遮罩连同内容一起盖住抽屉 */
+/* 置顶档位需盖过两套更高的层：任务抽屉(z≈120)、以及 ElementPreviewModal 预览/生成弹窗栈
+   （内联 z-index 从 1000 起逐层 +10）。故抬到 2000+，确保从生成弹框内打开的抽帧弹窗浮在最上层。 */
+.rx-top-backdrop { z-index: 2000; }
+.rx-top { z-index: 2001; }
+
+/* 近全屏变体：画布/编排类内容用（正文区撑满、内容自管滚动与交互） */
+.modal-card.rx-modal-full { width: 94vw; max-width: 94vw; height: 92vh; max-height: 92vh; }
+.modal-card.rx-modal-full .rx-modal-body { overflow: hidden; display: flex; flex-direction: column; }
+.rx-modal-full .rx-modal-body > * { flex: 1 1 auto; min-height: 0; }

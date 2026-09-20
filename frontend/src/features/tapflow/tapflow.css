@@ -1,0 +1,1679 @@
+/* ═══════════════════════════════════════════════════════════
+   tapflow.css —— tapflow 画布（1:1 复刻 TapNow 风格）
+   纯黑点阵画布 / 内容直出节点 / 贝塞尔连线 / 浮动工具条 /
+   Workflow 分组 / 运行态右侧 AI 对话面板
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 流程列表页（点击条目弹窗打开画布） ───── */
+.tap-flow-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 2px; }
+.tap-flow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.tap-flow-list .tap-flow-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; text-align: left; cursor: pointer; color: var(--text);
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  transition: border-color .15s, background .15s;
+}
+.tap-flow-list .tap-flow-card:hover { background: var(--card-hover); border-color: var(--border-strong); filter: none; }
+.tap-flow-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.tap-flow-desc { font-size: 13px; color: var(--dim); line-height: 1.6; }
+.tap-flow-meta { display: flex; gap: 12px; font-size: 12px; color: var(--dim); }
+.tap-flow-meta .time { margin-left: auto; }
+/* 演示流程角标：假数据卡片保留作视觉对齐基准，与真实流程卡并列时以此区分 */
+.tap-flow-demo {
+  margin-left: auto; font-size: 11px; font-weight: 400; color: var(--dim);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+}
+/* 新建卡：虚线占位，与既有卡同网格；editing 态是 div（内含输入），hover 不整卡变色 */
+.tap-flow-list .tap-flow-new { border-style: dashed; background: transparent; }
+.tap-flow-list .tap-flow-new:hover { border-color: var(--accent); }
+.tap-flow-list .tap-flow-new.editing { cursor: default; }
+.tap-flow-new.editing input { width: 100%; }
+.tap-flow-new .btns { display: flex; gap: 8px; }
+.tap-flow-err { font-size: 12px; color: #e45a67; }
+
+.tap-page {
+  display: flex; flex: 1; height: 100%; min-height: 0;
+  background: #060607; color: #e8e8ea; overflow: hidden;
+  border-radius: 12px;
+}
+
+/* 画布弹窗（Modal 的 cardClass="tap-modal"）：100% 全屏 + 画布同色底，只影响 tapflow */
+.modal-card.rx-modal-full.tap-modal {
+  width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh;
+  border-radius: 0; border-color: #1c1c20;
+  background: #060607;
+}
+.tap-main { position: relative; flex: 1; min-width: 0; }
+
+/* 浮层玻璃：半透明底 + 背板模糊。模糊配方只定义这一处，各浮层引用 var，
+   免得调一次参数要追着改三四条规则。玻璃件不再画 1px 边框——半透明+模糊
+   本身就把浮层和画布分开了，再加描边反而显脏。 */
+.tap-page { --tap-glass: blur(18px) saturate(140%); }
+
+/* tapflow 内所有按钮回归"无底色图标钮"，压掉 base.css 的渐变大按钮。
+   排除 .switch —— Radix 开关也渲染成 <button>，但它是 base.css 的 .switch 原子，
+   底色/边框/内边距/对齐都由它自己定，被这条压掉会抹掉轨道边框、还把滑块 justify 到正中。
+   必须写 :where(:not(...)) 不能写 :not(...)：:not() 会把参数的特异度算进来，
+   (0,1,1) 一下涨到 (0,2,1)，反超本页所有 `.tap-page .xxx-btn{padding}`（0,2,0），
+   于是整页按钮的内边距被这里的 padding:0 全吃掉。:where() 特异度恒为 0，
+   排除照旧生效而这条仍是 (0,1,1)，谁都不误伤。
+   边框统一不画：主次靠底色/字色区分（如运行按钮的白底黑字），不靠描边。
+   个别按钮确实需要边框的，在它自己的规则里显式写回去，别再统一开。 */
+.tap-page button:where(:not(.switch)) {
+  background: transparent; border: 0; padding: 0 6px; border-radius: 10px;
+  color: inherit; font: inherit; display: inline-flex; align-items: center;
+  justify-content: center; gap: 6px; cursor: pointer;
+}
+.tap-page button:hover:not(:disabled) { filter: none; }
+
+/* ── 画布本体 ─────────────────────────── */
+/* 默认光标 = 食指手型（pointer）：空白处拖拽是框选，不是抓着画布拖 */
+.tap-canvas {
+  position: absolute; inset: 0; overflow: hidden; cursor: pointer;
+  background-image: radial-gradient(#1d1d21 1px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+/* 只有按住空格进平移模式才切抓手（连节点上也切——此时拖的是画布，不是节点） */
+.tap-canvas.panning, .tap-canvas.panning .tap-node { cursor: grab; }
+.tap-canvas.panning:active, .tap-canvas.panning:active .tap-node { cursor: grabbing; }
+/* 按住 Ctrl/⌘：滚轮是缩放，光标改放大镜（含节点上，压过节点自身的 grab） */
+.tap-canvas.zooming, .tap-canvas.zooming:active,
+.tap-canvas.zooming .tap-node, .tap-canvas.zooming .tap-port { cursor: zoom-in; }
+.tap-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+/* 列参考线：屏幕空间的铺满层（inset:0），线的间隔与偏移由组件按视图变换
+   实时写进 background —— 任何平移/缩放下都盖满整个画布，两边不再留白 */
+.tap-column-guides {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+}
+
+/* 连线层：尺寸由 TapflowEdges 按内容包围盒算（1×1 + overflow 只画得出、点不中）。
+   svg 自身不吃事件，否则整块盖住画布，空白处就拖不动视图了 */
+.tap-edges { position: absolute; overflow: visible; pointer-events: none; }
+.tap-edges path { fill: none; stroke: #56585e; stroke-width: 1.6; opacity: .75; }
+/* 可点选的连线层：可见线本身也接管命中——用户鼠标就悬在它上面，
+   只在旁边那条透明命中线上监听，会出现「明明点着线却没反应」 */
+.tap-edges.pickable .tap-edge-line { pointer-events: stroke; cursor: pointer; stroke-width: 3; }
+/* 透明加粗的命中线：3px 的可见线也还有对不准的时候，再兜一层 24px */
+.tap-edges .tap-edge-hit {
+  stroke: transparent; stroke-width: 24; opacity: 1; stroke-linecap: round;
+  pointer-events: stroke; cursor: pointer;
+  /* 命中宽度按屏幕像素算，不随画布缩放缩水：缩到 0.4 时 24px 只剩 9.6px，
+     用户就是「明明点在线上却点不中」——non-scaling-stroke 把它钉在 24 屏幕像素。 */
+  vector-effect: non-scaling-stroke;
+}
+.tap-edge:hover .tap-edge-line { stroke: #8a8d96; opacity: 1; }
+.tap-edge.sel .tap-edge-line { stroke: #4a8cff; stroke-width: 3.4; opacity: 1; }
+.tap-edge.sel .tap-edge-hit { stroke-width: 30; }
+
+/* 选中连线的删除按钮：屏幕空间，居中贴在线中点 */
+.tap-page .tap-edge-del {
+  position: absolute; z-index: 46; transform: translate(-50%, -50%);
+  width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+  background: #1d1d20; color: #d2d2d7;
+  box-shadow: 0 6px 18px #000a;
+}
+.tap-page .tap-edge-del:hover { background: #e5484d; color: #fff; }
+/* 挂载点节点（2026-09-17）：声明产物归宿的独立节点。未选归宿（或正在改）时
+   卡面就是归宿点选列表；选好后上游连进来的产物实时回显——与产物节点同款大图，
+   右下角一枚大圆对号表示「这份产物已指向这个归宿」。 */
+.tap-page .tap-mount-pick { display: flex; flex-direction: column; padding: 4px 6px 6px; }
+.tap-page .tap-mount-pick-head { font-size: 11px; color: #8a8d96; padding: 4px 8px 6px; }
+.tap-page .tap-mount-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  font: inherit; color: #dcdce0; font-size: 12.5px;
+  background: transparent; border: 0; border-radius: 8px; padding: 7px 10px;
+}
+.tap-page .tap-mount-item:hover { background: #26262d; color: #fff; }
+.tap-page .tap-mount-item.active { background: #2b2b33; color: #fff; font-weight: 600; }
+.tap-page .tap-mount-item.taken { color: #55555d; cursor: not-allowed; }
+.tap-page .tap-mount-item.taken:hover { background: transparent; color: #55555d; }
+.tap-page .tap-mount-item em { font-style: normal; font-size: 11px; color: #8a8d96; }
+.tap-page .tap-mount-item.active em { color: #4cc38a; }
+.tap-page .tap-mount-figure {
+  position: relative; width: 100%; min-height: 248px;
+  display: flex; align-items: center; justify-content: center;
+}
+.tap-page .tap-mount-figure img { display: block; width: 100%; height: auto; }
+/* 视频归宿回显：与 img 同款铺满；hover 自动播放（media 组件同策略） */
+.tap-page .tap-mount-figure video { display: block; width: 100%; height: auto; object-fit: contain; background: #0c0c0e; }
+.tap-page .tap-mount-figure .tap-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 34px; height: 34px; border-radius: 50%; background: #0009; color: #fff;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.tap-page .tap-mount-figure .tap-mount-empty {
+  font-size: 12px; color: #8a8d96; padding: 18px 22px;
+  border: 1px dashed #3a3a42; border-radius: 10px; text-align: center;
+}
+
+/* 挂载点右下角的归宿胶囊：√ + 归宿名 + ⚙（齿轮重开归宿选择）。跨在节点下沿、
+   一半悬出（bottom 为负的高度一半），不被卡片 overflow:hidden 裁剪——挂在
+   .tap-node 根上，与 tap-node-badge 同一策略。尺寸刻意放大：画布常在 0.4 倍
+   缩放下看，归宿是产物的终点，必须一眼认出；老的 46px 小圆章根本看不清。 */
+.tap-page /* 挂载点标识牌（绑定态）：骑在卡顶边、水平居中，基准尺寸再 scale(2.5) 放大，黄底黑字——
+   它是「这颗是挂载点」的明显标识，标题行仍与其他节点一致。
+   挂在 .tap-node 根上（卡 overflow:hidden 会裁掉悬出的一半）；
+   top 26px = 标题行高（TITLE_H）＝卡顶边；translate 必须写在 scale 前面：平移不随缩放变倍，
+   牌中心仍精确落在顶边中点，缩放以中心为原点向四周放大，居中/骑边都不偏。 */
+.tap-mount-flag {
+  position: absolute; top: 26px; left: 50%; transform: translate(-50%, -50%) scale(2.5);
+  z-index: 8; display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 14px; border-radius: 999px;
+  background: #f5c518; border: none;
+  font-size: 14px; color: #111; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 4px 14px #000a;
+}
+.tap-mount-flag .icon { font-size: 14px; }
+.tap-mount-flag b { font-weight: 600; }
+.tap-mount-flag-gear {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex: none; border-radius: 50%;
+  color: #111; cursor: pointer;
+}
+.tap-mount-flag-gear:hover { background: #00000022; color: #111; }
+.tap-mount-flag-gear .icon { font-size: 13px; }
+/* 卡内：左媒体右信息（参考项目卡片）：左图/视频定 16:9 比例，右名称+描述。
+   不再自带 padding，间距统一由卡的 50/30/30/30 管 */
+.tap-mount-body { display: flex; align-items: center; gap: 12px; width: 100%; }
+/* 挂载点卡：高度不再固定（去掉方卡约束），由内容撑开；
+   内边距 上50 右30 下30 左30——顶部留给骑边标识牌，四周留白呼吸。
+   只约束绑定态（卡里是 .tap-mount-body）——归宿选择列表沿用原自适应高度。 */
+.tap-node.is-mount .tap-node-card:has(.tap-mount-body) {
+  padding: 50px 30px 30px 30px;
+}
+.tap-node.is-mount .tap-mount-figure {
+  flex: 1 1 55%; min-width: 0; min-height: 0;
+  /* 框比例由内联 style 按素材原始宽高比覆写；此处的 16/9 只是素材比例未知时的兑底 */
+  aspect-ratio: 16 / 9;
+  max-height: 320px; /* 竖长图封顶：超出部分 cover 裁切，框不发失控 */
+  background: #000; /* 纯黑底：未出图/竖图留边时框内不发灰 */
+  border: 1px solid #38383f; border-radius: 8px; overflow: hidden;
+}
+/* 定比例框内媒体铺满裁切（不再高度自适应撑高） */
+.tap-node.is-mount .tap-mount-figure img,
+.tap-node.is-mount .tap-mount-figure video { width: 100%; height: 100%; object-fit: cover; }
+/* 宽幅媒体（原始比例 > 3:2）：上下布局——媒体满宽在上、名称描述在下；
+   比例由 TapflowNode 读 img/video 原始宽高比后加 .stack 决定，未加载时保持左右 */
+.tap-node.is-mount .tap-mount-body.stack { flex-direction: column; align-items: stretch; gap: 10px; }
+.tap-node.is-mount .tap-mount-body.stack .tap-mount-figure { flex: none; width: 100%; }
+.tap-mount-info { flex: 1 1 45%; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.tap-mount-info b { font-size: 13px; font-weight: 600; color: #e8e8ec;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-mount-info em { font-style: normal; font-size: 11.5px; color: #8a8d96; line-height: 1.5; }
+
+/* 选中连线的提示条：明确告诉用户「线选中了、怎么删」，也给点击一个可见回执 */
+.tap-page .tap-edge-tip {
+  position: absolute; z-index: 44; left: 50%; bottom: 80px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; pointer-events: none;
+  padding: 7px 14px; border-radius: 999px; font-size: 12px;
+  background: #1d1d20; color: #d2d2d7; box-shadow: 0 10px 26px #000a;
+}
+/* 属性面板里的「断开这条连线」：保底入口，不在画布上跟细线较劲 */
+.tap-page .tap-insp-fix-btn {
+  width: 100%; margin-top: 4px; padding: 6px 9px; border-radius: 8px;
+  background: #131316; color: #cfcfd4; font-size: 12.5px; text-align: left;
+  border: 1px solid #3a3a42; cursor: pointer;
+}
+.tap-page .tap-insp-fix-btn:hover { background: #1d1d22; color: #e9e9ee; border-color: #4a4a55; }
+
+.tap-insp-edge-del {
+  width: 20px; height: 20px; padding: 0; border-radius: 50%; font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #26262c; color: #d2d2d7; border: 1px solid #3a3a42;
+}
+.tap-page .tap-insp-edge-del:hover { background: #e5484d; color: #fff; border-color: #e5484d; }
+.tap-page .tap-edge-tip .k {
+  padding: 1px 6px; border-radius: 5px; font-size: 11px;
+  background: #33333a; color: #e9e9ee; border: 1px solid #4a4a52;
+}
+
+/* ── 节点 ─────────────────────────────── */
+.tap-node { position: absolute; cursor: grab; user-select: none; }
+.tap-node-title {
+  display: flex; align-items: center; gap: 5px; height: 26px;
+  font-size: 12.5px; color: #a2a2a8;
+  position: relative; z-index: 7; width: max-content; max-width: 480px;
+  white-space: nowrap; transform: scale(var(--tap-title-counter-scale, 1));
+  transform-origin: left bottom;
+}
+.tap-node-title .icon { font-size: 13px; }
+.tap-node-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tap-loop-aggregate-badge {
+  position: absolute; z-index: 6; right: -24px; top: calc(50% + 13px);
+  transform: translateY(-50%); pointer-events: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  color: #000000; background: #FFC107;
+  /* border: 1px solid #b56cff; */
+  box-shadow: 0 0 10px #ffdb6c80;
+}
+.tap-loop-aggregate-badge .icon { font-size: 31px; }
+.tap-done { display: inline-flex; color: #3b82f6; font-size: 14px; }
+.tap-done .icon { fill: none; }
+
+.tap-node-card {
+  position: relative; background: #1a1a1d; border: 1px solid #2b2b30;
+  border-radius: 10px; overflow: hidden; min-height: 48px;
+  display: flex; align-items: center; justify-content: center;
+}
+.tap-node.is-condition .tap-node-card {
+  background: none; border: 0; border-radius: 0; overflow: visible; min-height: 0;
+}
+.tap-node.selected .tap-node-card {
+  border-color: #e9e9ee;
+  /* box-shadow: 0 0 0 1px #e9e9ee66, 0 10px 34px #000a; */
+}
+.tap-node.loop-preview-node .tap-node-card {
+  background: transparent; border: 0; border-radius: 0;
+  overflow: visible; box-shadow: none;
+}
+.tap-node.loop-preview-node.selected .tap-node-card {
+  border: 0; box-shadow: none;
+}
+.tap-loop-preview-stack {
+  position: absolute; inset: 0; overflow: visible;
+  pointer-events: none;
+}
+.tap-loop-preview {
+  position: absolute; overflow: hidden; box-sizing: border-box;
+  border: 0; border-radius: 8px;
+}
+.tap-loop-preview:nth-child(1) { background: #35353b; }
+.tap-loop-preview:nth-child(2) { background: #2b2b31; }
+.tap-loop-preview:nth-child(3) { background: #222227; }
+.tap-node.loop-preview-node .tap-node-card .tap-loop-preview img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  pointer-events: none;
+}
+.tap-loop-preview-placeholder { display: block; width: 100%; height: 100%; }
+/* 拖线悬停其上、松手即连：蓝色描边（与「已选中」的白描边区分开） */
+.tap-node.drop-target .tap-node-card,
+.tap-node.drop-target.is-qc .tap-qc-dot {
+  border-color: #3b82f6; box-shadow: 0 0 0 3px #3b82f644;
+}
+/* 挂载点（产物归宿）：节点比上游连线节点大一号（1.5 倍、中心不动，宽度由
+   syncMountSizes 写实进数据）；归宿身份由右下角的胶囊徽章说明，不再加金边。 */
+/* 拖线悬停在挂载点上时与普通节点一样用蓝色提示「松手就连这里」 */
+/* 图片/视频封面：宽度占满节点（460），高度按原图比例自适应 */
+.tap-node-card img {
+  width: 100%; height: auto; display: block;
+  pointer-events: none;
+}
+/* 循环投影必须在数量拿到时即可排版：按项目比例生成的节点高度内完整显示原图。 */
+.tap-node.runtime-instance .tap-node-card img {
+  width: 100%; height: 100%; object-fit: contain; background: #151519;
+}
+.tap-node-card video { width: 100%; height: auto; display: block; }
+/* hover 播放中隐藏 play 角标 */
+.tap-node-card:hover video ~ .tap-play { opacity: 0; }
+.tap-node-text {
+  align-self: stretch; width: 100%; height: 100%; padding: 12px 14px;
+  font-size: 16px; line-height: 1.6; color: #b4b4ba;
+  white-space: pre-wrap; overflow: hidden;
+}
+/* 正文滚动只在选中节点后开放，未选中时滚轮交给画布缩放 */
+.tap-node.selected .tap-node-text { overflow-y: auto; }
+.tap-node-text .placeholder, .tap-node-text.placeholder { font-size: 16px; color: #55555b; }
+/* 双击进编辑：就地换成 textarea，尺寸/字号与只读态一致，不产生跳动 */
+.tap-page .tap-node-edit {
+  border: 0; background: #131316; border-radius: inherit; resize: none;
+  font-family: inherit; outline: none;
+}
+.tap-page .tap-node-edit:focus { box-shadow: inset 0 0 0 1px #4a6ea8; }
+.tap-play {
+  position: absolute; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 10px; background: #000a; color: #e8e8ea;
+}
+.tap-play.big { position: static; width: 52px; height: 52px; border-radius: 14px; background: #26262b; color: #97979e; font-size: 20px; }
+.tap-star {
+  position: absolute; top: 8px; left: 8px; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #000c; color: #e8e8ea; font-size: 13px;
+}
+
+.tap-empty { color: #55555b; font-size: 28px; display: inline-flex; }
+
+/* 生成中占位：灰白文字 + 暗色微光扫过 */
+.tap-generating {
+  font-size: 26px; color: #c9c9cf; letter-spacing: 2px;
+  width: 100%; height: 100%; display: grid; place-items: center;
+  border-radius: inherit;
+  background: linear-gradient(100deg, #17171a 40%, #232328 50%, #17171a 60%);
+  background-size: 220% 100%;
+  animation: tap-shimmer 1.8s linear infinite;
+}
+/* 生成中的卡片再套一层 base.css 的 .flowing-border（流光沿卡片外沿跑）：
+   伪元素在卡片外，必须放开裁剪（此态卡内只有占位块，圆角改由它自己继承）；
+   外扩量要盖过卡片自己那 1px 边框，取 4px 才有 3px 光带露在外面 */
+.tap-node-card.flowing-border { overflow: visible; --flow-out: 4px; }
+/* 质检节点的可见形状是里面那颗圆点：卡片跟着改成圆形，
+   流光才贴着圆点跑，而不是在它外面套一个圆角方框 */
+.tap-node-card.tap-card-qc.flowing-border { border-radius: 50%; }
+/* 执行中的节点标题也提一下亮度：缩得很小时边框细，光靠它认不出跑到哪 */
+.tap-node.running .tap-node-title { color: #e9e9ee; }
+@keyframes tap-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* 上传节点右上角「替换」 */
+.tap-replace {
+  position: absolute; top: 10px; right: 10px;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #000c; border-radius: 12px; padding: 9px 15px;
+  font-size: 14px; font-weight: 600; color: #f0f0f3;
+}
+
+/* ── 放大 / 裁剪视图（画布内全幅遮罩） ──── */
+.tap-media-overlay {
+  position: absolute; inset: 0; z-index: 40;
+  background: #000d; display: flex; align-items: center; justify-content: center;
+}
+.tap-media-stage { position: relative; max-width: 92%; max-height: 86%; display: flex; }
+.tap-media-stage img, .tap-media-stage video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border-radius: 8px; }
+.tap-crop-frame {
+  position: absolute; inset: 12% 14%;
+  border: 1.5px solid #fff; box-shadow: 0 0 0 9999px #0007;
+}
+.tap-crop-frame .c { position: absolute; width: 18px; height: 18px; border: 3px solid #fff; }
+.tap-crop-frame .tl { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+.tap-crop-frame .tr { top: -3px; right: -3px; border-left: 0; border-bottom: 0; }
+.tap-crop-frame .bl { bottom: -3px; left: -3px; border-right: 0; border-top: 0; }
+.tap-crop-frame .br { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+.tap-media-bar {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  background: #1d1d20; border: 1px solid #2c2c31; border-radius: 16px;
+  padding: 8px 10px; box-shadow: 0 14px 40px #000b; white-space: nowrap;
+}
+.tap-page .tap-media-bar .ok { background: #f0f0f3; color: #111; border-radius: 12px; }
+.tap-page .tap-media-bar .ok:hover { background: #fff; }
+
+/* 圆点拖出中的临时虚线（屏幕空间，盖在画布上、不吃事件） */
+.tap-temp-edge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 15; }
+.tap-temp-edge path { fill: none; stroke: #7a7d84; stroke-width: 1.6; stroke-dasharray: 5 5; }
+/* 悬在可连节点上：虚线转实线蓝，与节点的蓝描边一起表示「松手即连」 */
+.tap-temp-edge.will-link path { stroke: #3b82f6; stroke-width: 2; stroke-dasharray: none; }
+
+/* ── 添加节点 / 引用该节点生成 菜单 ──────── */
+.tap-add-menu {
+  /* 由 rail 弹出，要压过 rail（24）；全幅媒体遮罩 40 仍在最上 */
+  position: absolute; z-index: 32; width: 300px;
+  background: #1d1d2096; border-radius: 16px;
+  padding: 12px; box-shadow: 0 22px 60px #000c;
+  backdrop-filter: var(--tap-glass); -webkit-backdrop-filter: var(--tap-glass);
+}
+.tap-add-title { font-size: 13px; color: #8a8a90; padding: 2px 6px 8px; }
+.tap-add-title.sec { padding-top: 12px; }
+.tap-page .tap-add-item {
+  display: flex; width: 100%; align-items: center; gap: 12px;
+  padding: 8px; border-radius: 12px; text-align: left; justify-content: flex-start;
+}
+.tap-page .tap-add-item:hover { background: #26262b; }
+.tap-add-ico {
+  width: 44px; height: 44px; flex: none; border-radius: 12px;
+  background: #2a2a2e; display: grid; place-items: center; font-size: 18px; color: #d2d2d7;
+}
+.tap-add-text { display: flex; flex-direction: column; line-height: 1.35; }
+.tap-add-text b { font-size: 14.5px; font-weight: 600; color: #e8e8ea; }
+.tap-add-text em { font-style: normal; font-size: 12px; color: #8a8a90; margin-top: 2px; }
+
+/* 连线锚点：透明热区永久存在；加号仅在热区内出现并跟随指针。 */
+.tap-port-zone {
+  position: absolute; z-index: 8; top: calc(50% + 13px);
+  width: 60px; height: 80px; background: transparent;
+  transform: translateY(-50%);
+  box-sizing: border-box; cursor: crosshair; opacity: 0;
+  transition: opacity 100ms ease;
+}
+.tap-port-zone.active { opacity: 1; }
+.tap-port-zone.left { left: -36px; }
+.tap-port-zone.right { right: -36px; }
+.tap-port {
+  position: absolute; z-index: 9; left: 50%; top: 50%; width: 22px; height: 22px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: #131315; border: 1px solid #45454c; color: #9d9da4;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 100ms ease;
+}
+.tap-port-zone.active .tap-port {
+  opacity: 1; visibility: visible;
+}
+
+/* 选中节点的右下角宽度缩放热区；弧形只在指针进入热区时显现。 */
+.tap-resize-handle {
+  position: absolute; z-index: 10; right: -18px; bottom: -18px;
+  width: 36px; height: 36px; cursor: nwse-resize;
+}
+.tap-resize-handle::after {
+  content: ''; position: absolute; right: 7px; bottom: 7px;
+  width: 20px; height: 20px;
+  border-right: 4px solid #e6e6ea; border-bottom: 4px solid #e6e6ea;
+  border-bottom-right-radius: 17px;
+  opacity: 0; transform: scale(.78); transform-origin: right bottom;
+  transition: opacity 100ms ease, transform 120ms ease;
+}
+.tap-resize-handle:hover::after { opacity: 1; transform: scale(1); }
+
+.tap-node.manual-sized .tap-node-card img,
+.tap-node.manual-sized .tap-node-card video {
+  width: 100%; height: 100%; object-fit: contain;
+}
+.tap-node.manual-sized .tap-loop-body { min-height: 0; height: 100%; }
+
+/* ── 浮动工具条（节点上方 / 分组顶部共用 .tap-tool） ── */
+.tap-tool {
+  width: 34px; height: 34px; border-radius: 10px; color: #d2d2d7; font-size: 15px;
+}
+.tap-page .tap-tool:hover { background: #2c2c31; }
+.tap-tool.wide { width: auto; padding: 0 12px; font-size: 13.5px; }
+.tap-tool-sep { width: 1px; height: 18px; background: #37373d; margin: 0 4px; }
+
+/* 炸开浮层容器：锚点由画布按视图变换实时换算，内容为屏幕固定尺寸 */
+.tap-overlay { position: absolute; z-index: 20; }
+/* 与卡片保持同样的 14px 间距（上方要先上移自身高度，再往上留白） */
+.tap-overlay.above { transform: translate(-50%, calc(-100% - 14px)); }
+.tap-overlay.below { transform: translate(-50%, 14px); }
+
+.tap-node-toolbar {
+  display: flex; align-items: center; gap: 2px;
+  background: #1d1d20; border: 1px solid #2c2c31; border-radius: 12px;
+  padding: 3px 4px; box-shadow: 0 14px 40px #000b; white-space: nowrap;
+}
+
+/* ── 框选 & 多选 & 组 ─────────────────── */
+/* 拖出的选框：半透明灰底，屏幕空间，线宽不随缩放变化 */
+.tap-marquee {
+  position: absolute; z-index: 18; pointer-events: none;
+  border: 1px solid #ffffff2e; background: #8b8b9426; border-radius: 6px;
+}
+/* 选区灰框 / 组框：世界坐标，画在节点下面。组框可点可拖，选区框只是提示 */
+.tap-sel-region, .tap-group {
+  position: absolute; border-radius: 18px;
+  background: #8b8b941f; border: 1px solid #ffffff1a;
+}
+.tap-sel-region { pointer-events: none; }
+.tap-group { cursor: grab; }
+.tap-group.selected { background: #8b8b9430; border-color: #ffffff33; }
+.tap-group-name {
+  position: absolute; left: 14px; top: 6px;
+  font-size: 12.5px; color: #9a9aa2; user-select: none;
+}
+
+/* 多选工具条：复用 .tap-node-toolbar 的形态，前面多一枚计数 */
+.tap-select-bar { gap: 4px; padding: 4px 5px 4px 11px; }
+.tap-select-count { font-size: 12.5px; color: #a2a2a8; }
+.tap-select-sep { width: 1px; height: 18px; background: #33333a; margin: 0 2px; }
+.tap-page .tap-select-act {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px;
+  font-size: 13px; color: #d2d2d7; background: none; border: none;
+  border-radius: 8px; cursor: pointer;
+}
+.tap-page .tap-select-act:hover { background: #2a2a30; }
+.tap-page .tap-select-bar .tap-tool.danger:hover { background: #e5484d; color: #fff; }
+
+/* ── 画布临时文件夹节点 ───────────────── */
+.tap-folder-node {
+  position: absolute; cursor: grab; user-select: none;
+}
+.tap-folder-node:active { cursor: grabbing; }
+.tap-folder-title {
+  display: flex; align-items: center; gap: 5px; height: 26px;
+  font-size: 12.5px; color: #a2a2a8;
+  position: relative; z-index: 7; width: max-content; max-width: 480px;
+  white-space: nowrap; transform: scale(var(--tap-title-counter-scale, 1));
+  transform-origin: left bottom;
+}
+.tap-folder-title .icon { font-size: 13px; color: #d2b36c; }
+.tap-folder-title > span { color: #c7c7cc; }
+.tap-folder-card {
+  position: relative; height: 273px; min-height: 48px;
+  background: transparent; border: 0; border-radius: 10px;
+  overflow: visible; box-sizing: border-box;
+}
+.tap-folder-stack {
+  position: absolute; inset: 0; overflow: visible; border-radius: inherit;
+}
+.tap-folder-preview {
+  position: absolute; overflow: hidden;
+  background: #24242a; border: 0; border-radius: 8px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.tap-folder-node.selected .tap-folder-preview:last-child {
+  box-shadow: 0 0 0 2px #e9e9ee66, 0 10px 30px #0008;
+}
+.tap-folder-preview img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+}
+.tap-folder-placeholder {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  color: #66666f; font-size: 34px;
+}
+.tap-folder-count {
+  position: absolute; left: 0; bottom: 0; z-index: 3;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 58px; padding: 10px 44px 10px 30px; border-radius: 1px 85px 0 10px;
+  background: #f2c94c; color: #111216; font-size: 48px; font-weight: 700;
+  box-shadow: 0 -4px 18px #000;
+  pointer-events: none;
+}
+.tap-folder-count .icon { font-size: 22px; }
+.tap-folder-popover {
+  position: absolute; z-index: 8; top: calc(100% + 10px); left: 0;
+  width: 100%; max-height: 220px; overflow-y: auto; box-sizing: border-box;
+  padding: 8px; border: 1px solid #38383f; border-radius: 10px;
+  background: #1d1d20f2; box-shadow: 0 18px 44px #000c;
+}
+.tap-folder-item {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 4px; color: #d4d4da; font-size: 12px;
+}
+.tap-folder-item img, .tap-folder-item-placeholder {
+  width: 42px; height: 32px; flex: none; object-fit: cover; border-radius: 5px;
+  background: #2a2a2f; color: #777780; display: grid; place-items: center;
+}
+.tap-folder-item span:last-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── 生成输入条（选中节点下方） ─────────── */
+.tap-prompt-bar {
+  width: 620px; max-width: 82vw;
+  background: #1e1e21f2; border: 1px solid #303036; border-radius: 20px;
+  padding: 14px 16px; box-shadow: 0 22px 60px #000c; cursor: default;
+  box-sizing: border-box;
+}
+.tap-prompt-refs { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 8px; width: 100%; min-width: 0; }
+.tap-prompt-ref-fixed { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.tap-prompt-refs img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.tap-ref-auto, .tap-ref-add {
+  width: 44px; height: 44px; border-radius: 12px; font-size: 16px;
+  background: #29292e; color: #cfcfd4;
+}
+.tap-page .tap-ref-add { background: #232327; }
+/* 提示词就地可编辑：外观与原只读文本一致，去掉 textarea 的默认边框/底色 */
+.tap-prompt-text {
+  display: block; width: 100%; box-sizing: border-box; margin: 12px 0 10px; padding: 0 2px;
+  font-size: 14px; line-height: 1.7; color: #e6e6ea; font-family: inherit;
+  background: none; border: none; outline: none; resize: none;
+  /* 高度由 JS 按内容算（见 TapflowPromptBar），到上限再滚 */
+  max-height: 260px; overflow-y: auto;
+}
+/* 聚焦不描边、不发光：base 里 `textarea:focus` 是 (0,1,1)，压得过 `.tap-prompt-text` (0,1,0)，
+   它那圈 accent 边框 + box-shadow 会在点进输入框时冒出来——生成条本身就是一张卡，
+   卡里再套一个高亮框等于两层容器。必须带 .tap-page 前缀才够特异度。 */
+.tap-page .tap-prompt-text:focus,
+.tap-page .tap-prompt-text:focus-visible {
+  border: none; outline: none; box-shadow: none;
+}
+.tap-prompt-text::placeholder { color: #6a6a71; }
+.tap-prompt-foot { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tap-foot-left {
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.tap-model {
+  flex: none; min-width: 0; max-width: 200px;
+  display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 400;
+}
+.tap-model .icon { flex: none; }
+.tap-model > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-param {
+  flex: none; min-width: 0; max-width: 180px;
+  display: inline-flex; align-items: center; gap: 5px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; color: #cfcfd4; padding: 0 9px; border-left: 1px solid #37373d;
+}
+.tap-param.plain { border-left: 0; }
+.tap-param > span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-foot-right { flex: none; display: inline-flex; align-items: center; }
+/* 必须带 .tap-page 前缀：base 里那条 `.tap-page button:where(:not(.switch))` 是 (0,1,1)，
+   光写 .tap-send-btn 是 (0,1,0)，压不过它——白底黑箭头会整条失效，
+   只剩 hover 生效，于是就成了「平时暗、划上去白底白箭头」。 */
+.tap-page .tap-send-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #f0f0f3; color: #111; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* hover 反色为纯黑底白图标。**必须同时写 color**：只改 background 的话，
+   全局 button:hover 会把图标也刷成白色，白底白箭头等于按钮消失（实测踩过）。 */
+.tap-page .tap-send-btn:hover { background: #000; color: #fff; }
+/* 下发中（loading）：禁点且转圈，让「点了有没有反应」一目了然 */
+.tap-page .tap-send-btn:disabled { opacity: .55; cursor: progress; }
+
+/* ── 底部居中横向工具条：TapNow 浮动样式，按钮为智能体编排那套 / 左下角竖排缩放条 ──
+   （底部条居中：右侧留给运行面板与全站对话悬浮；左下角缩放条改竖排、
+     与底部条分居两角，互不重叠） */
+.tap-rail {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; flex-direction: row; align-items: center; gap: 8px;
+  background: #18181b7d; border-radius: 999px;
+  /* 常驻操作件的层级必须高于炸开浮层（.tap-overlay=20），否则生成输入条会压住 rail */
+  /* 高度与首页 omnibar 对齐（内容 40 + 上下 padding 7 = 54px） */
+  padding: 7px 8px; box-shadow: 0 14px 40px #0009; z-index: 24;
+  font-size: 20px;
+  backdrop-filter: var(--tap-glass); -webkit-backdrop-filter: var(--tap-glass);
+}
+.tap-rail-btn { width: 40px; height: 40px; border-radius: 999px; font-size: 16px; color: #b4b4ba; }
+/* 加号（新建最小集）：纯黑正圆，与旁边资产库的透明钮拉开层级——它是唯一的「创建」动作。
+   border-radius 必须显式写：base 那条 .tap-page button:where(...) 是 (0,1,1)，会压掉 .tap-rail-btn 的 999px */
+.tap-page .tap-rail-btn:first-child { background: #000; color: #fff; border-radius: 50%; }
+.tap-page .tap-rail-btn:first-child:hover { background: #26262b; color: #fff; }
+.tap-page .tap-rail-btn:hover { background: #26262b; }
+/* 选中态：黑底白字、无边框（「+ 新建」不是开合态，不参与高亮） */
+.tap-page .tap-rail-btn.on { background: #000; border: none; color: #fff; }
+/* 主操作「运行」：白底黑图标，一眼看出这枚是要按的那个（.on 是"面板开着"，两者语义不同） */
+.tap-page .tap-rail-btn.primary { background: #f0f0f3; border: none; color: #111; }
+.tap-page .tap-rail-btn.primary:hover { background: #000; color: #fff; }
+.tap-page .tap-rail-btn.primary:disabled { background: #d8d8dd; color: #55555c; cursor: default; }
+
+/* 指令输入框：纯净透明内芯（无边框、无背景、focus 不高亮，与首页 omnibar 的 input 一致），
+   右端「智能生成」白底黑字胶囊收尾。有字回车/点钮 = 发给 AI；空时点钮 = 运行画布 */
+.tap-rail-input {
+  display: flex; align-items: center; gap: 8px;
+  width: clamp(260px, 32vw, 460px);
+  padding: 0 0 0 14px;
+  border-radius: 999px; background: transparent;
+}
+.tap-rail-input input {
+  flex: 1; min-width: 0; border: 0; outline: none; box-shadow: none;
+  background: transparent; color: #e8e8ea; font: inherit; font-size: 14px; padding: 6px 0;
+}
+.tap-rail-input input::placeholder { color: #6a6a71; }
+.tap-rail-input input:focus { outline: none; box-shadow: none; }
+.tap-page .tap-rail-go {
+  flex: none; height: 40px; padding: 2px 2px 2px 18px; border-radius: 999px;
+  background: #fff; color: #111; font-size: 13.5px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+/* 右端黑圆徽标：平时装白飞机（45° 斜指右上、视觉右移），忙时换白圈 loading——
+   按钮整体观感（白胶囊/黑字「智能生成」/黑圆）不因状态变化，只换圆心里的图形 */
+.tap-page .tap-rail-go-badge {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  background: #111; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tap-page .tap-rail-go-badge .icon { font-size: 18px; }
+/* 飞机沿用调好的形态：撑满徽标（36px）+ 斜 46° + padding 不对称造成的视觉右移 */
+.tap-page .tap-rail-go-badge .go-plane {
+  width: 36px; height: 36px; box-sizing: border-box;
+  padding: 2px 2px 2px 8px; transform: rotate(-46deg);
+}
+/* hover 只轻微压暗白底（参考首页 omni-go），不变色反白——白底黑字是它的识别色 */
+.tap-page .tap-rail-go:hover:not(:disabled) { background: #e4e4ea; color: #111; }
+/* 忙时（转圈/派发中）观感与平时完全一致：不整颗变灰（旧「生成中」灰钮像坏了，已废弃），
+   只是把黑圆里的飞机换成 loading；禁用只为了防连点。
+   opacity:1 是压掉 base.css 的全局 button:disabled{opacity:.5}——那条会把白钮洗成半透明灰 */
+.tap-page .tap-rail-go:disabled { background: #fff; color: #111; opacity: 1; cursor: default; }
+
+.tap-zoombar {
+  position: absolute; left: 18px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 24;
+  font-size: 18px;
+}
+.tap-page .tap-zoombar .tap-tool.on { background: #2c2c31; color: #e8e8ea; }
+
+/* ── 快捷键浮窗（左下控制条右侧：缩放条已改竖排，浮窗让到它右边） ─────────── */
+.tap-help-pop {
+  position: absolute; left: 76px; bottom: 18px; z-index: 26;
+  background: #1d1d20; border: 1px solid #2c2c31; border-radius: 14px;
+  padding: 12px 14px; box-shadow: 0 18px 50px #000b; min-width: 320px;
+}
+.tap-help-title { font-size: 13px; font-weight: 600; color: #e2e2e6; margin-bottom: 8px; }
+.tap-help-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; color: #b8b8be; }
+.tap-help-row kbd {
+  flex: none; min-width: 128px; text-align: center;
+  background: #26262b; border: 1px solid #333338; border-radius: 7px;
+  padding: 3px 8px; font-family: inherit; font-size: 12px; color: #e2e2e6;
+}
+/* 与 .tap-rail 同一套玻璃：两者都是常驻操作条，底色/模糊要一致 */
+.tap-zoombar-box {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: #18181b7d; border-radius: 26px; padding: 4px;
+  backdrop-filter: var(--tap-glass); -webkit-backdrop-filter: var(--tap-glass);
+}
+
+/* ── 编排⇄运行切换（右上角唯一悬浮件） ───── */
+.tap-mode-seg {
+  position: absolute; top: 14px; right: 16px; z-index: 24;
+  display: inline-flex; background: #1c1c1f; border: 1px solid #2a2a2e; border-radius: 19px; padding: 3px;
+}
+.tap-mode-seg button { padding: 5px 14px; border-radius: 15px; font-size: 13px; color: #a6a6ac; }
+.tap-mode-seg button.on { background: #f0f0f3; color: #111; }
+
+/* ── 保存条（编排态，排在模式切换左边同一行） ───── */
+.tap-savebar {
+  z-index: 24;
+  /* background: #1c1c1f00; */
+  /* border: 1px solid #2a2a2e; */
+  border-radius: 19px;
+  align-items: center;
+  gap: 8px;
+  max-width: min(56vw, 720px);
+  padding: 3px 6px 3px 12px;
+  display: inline-flex;
+  position: fixed;
+  bottom: 6px;
+  left: 76px;
+}
+.tap-savebar .tap-save-ver { font-size: 12px; color: #a6a6ac; white-space: nowrap; }
+
+
+
+.tap-savebar .tap-save-msg { font-size: 12px; color: #7ee2a8; }
+/* 存不下去的改动：橙字 + 截断，标题里给全文 */
+.tap-savebar .tap-save-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #e0a33e;
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-save-pub {
+  padding: 4px 12px; border-radius: 14px; font-size: 12px;
+  background: #f0f0f3; color: #111;
+}
+.tap-save-pub:disabled { opacity: .5; }
+
+/* ── 右侧属性面板（编排态选中节点展开，挤压画布） ── */
+.tap-inspector {
+  /* 默认按画布宽度的 28% 自适应，窄屏不低于 320、宽屏不超过 460 */
+  width: 28%; min-width: 320px; max-width: 460px;
+  flex: none; display: flex; flex-direction: column; min-height: 0;
+  background: #131316; border-left: 1px solid #232327;
+}
+.tap-insp-head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid #1f1f23; font-size: 14px;
+}
+.tap-insp-title { font-weight: 600; }
+.tap-insp-head .tap-tool { margin-left: auto; }
+.tap-insp-empty { padding: 24px 16px; font-size: 13px; color: #6a6a71; }
+.tap-insp-body { flex: 1; overflow-y: auto; padding: 10px; min-height: 0; }
+.tap-insp-field {
+  display: flex; align-items: baseline; gap: 12px; padding: 7px 0;
+  font-size: 13px; border-bottom: 1px solid #1c1c20;
+}
+.tap-insp-field .k { flex: none; width: 76px; color: #8a8a90; }
+.tap-insp-field .v { color: #dcdce0; word-break: break-all; }
+.tap-insp-field .v.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.tap-insp-sec { margin: 18px 0 6px; font-size: 13px; font-weight: 600; color: #e2e2e6; }
+.tap-insp-note { font-size: 12px; color: #6a6a71; line-height: 1.6; margin-bottom: 8px; }
+/* 流程能力开关（开始节点属性面板）：整张流程「被别人怎么调用」的声明 */
+.tap-insp-switch {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #d6d6da; margin-bottom: 6px; cursor: pointer;
+}
+.tap-insp-switch input { width: 14px; height: 14px; accent-color: #8ab4ff; cursor: pointer; }
+
+.tap-insp-check {
+  display: flex; align-items: center; gap: 9px; padding: 7px 8px;
+  font-size: 13px; color: #cfcfd4; border-radius: 8px; cursor: pointer;
+}
+.tap-insp-check:hover { background: #1c1c20; }
+.tap-inspector input[type="checkbox"] {
+  width: 15px; height: 15px; padding: 0; margin: 0; flex: none; accent-color: var(--accent);
+}
+/* 属性/运行面板：编辑控件（沿用面板深色系） */
+.tap-insp-field.col { flex-direction: column; align-items: stretch; gap: 5px; border-bottom: none; }
+.tap-insp-field.col .k { display: flex; align-items: center; gap: 6px; width: auto; }
+.tap-p-type {
+  font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 999px;
+  color: #8a8a90; background: #1c1c21; border: 1px solid #2a2a30;
+}
+.tap-p-type.ctx { color: #e879f9; border-color: #4a2b52; background: #1e1425; }
+.tap-p-del {
+  margin-left: auto; width: 20px; height: 20px; line-height: 1; font-size: 14px;
+  color: #6a6a71; background: none; border: none; border-radius: 6px; cursor: pointer;
+}
+.tap-p-del:hover { color: #e5484d; background: #221417; }
+.tap-insp-input.flat {
+  flex: 1; width: auto; padding: 4px 8px; font-size: 13px;
+  background: transparent; border-color: transparent;
+}
+.tap-insp-input.flat:hover { border-color: #2a2a30; }
+.tap-insp-input.flat:focus { background: #1a1a1f; border-color: #3d3d46; }
+.tap-insp-check.compact { padding: 2px 8px; font-size: 12px; color: #8a8a90; }
+/* 分节标题右侧原本是「文字 + 开关」的行内包裹（.tap-insp-check.inline），
+   现在文字收进了胶囊开关内部（components/Switch 的 children 态），包裹层已移除。 */
+
+/* 已选项行（components/tapflow/TapPickerField） */
+.tap-picked {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0 6px 8px;
+  font-size: 12.5px; color: #dcdce0; border-bottom: 1px solid #1c1c20;
+}
+.tap-picked span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 来源图标：技能/知识/工具各一色，一眼区分 */
+.tap-picked-ico { flex: none; display: inline-flex; font-size: 12px; font-style: normal; }
+.tap-picked-ico.skills { color: #e879f9; }
+.tap-picked-ico.kb { color: #60a5fa; }
+.tap-picked-ico.tools { color: #d8b45c; }
+
+/* 属性面板三段（输入 / 输出 / 显示）：各自成卡 */
+.tap-insp-part {
+  margin-bottom: 8px; padding: 8px 10px;
+  background: #16161a; border: 1px solid #232327; border-radius: 10px;
+}
+.tap-insp-part > .tap-insp-sec:first-child { margin-top: 0; }
+.tap-insp-part .tap-insp-sec { margin: 10px 0 4px; }
+.tap-insp-part .tap-insp-note { margin-bottom: 5px; }
+.tap-insp-part .tap-var { padding: 6px 0; gap: 4px; }
+.tap-insp-part .tap-picked { padding: 4px 0 4px 6px; }
+.tap-insp-part .tap-insp-field { padding: 5px 0; }
+.tap-insp-part .tap-insp-chips { margin: 3px 0 5px; }
+
+/* Fixed smart context for run mode. This card intentionally stays local to the
+   run panel until it is ready to feed workflow inputs. */
+.tap-fixed-params {
+  margin-bottom: 12px;
+  padding: 11px 12px 9px;
+  border-color: #2a2a30;
+  background: #17171a;
+}
+.tap-fixed-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 3px;
+}
+.tap-fixed-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: #e8e8ea; font-size: 13px; font-weight: 600;
+}
+.tap-fixed-title .icon { color: #9b6dff; font-size: 14px; }
+.tap-fixed-badge {
+  margin-left: auto; padding: 2px 7px; border: 1px solid #3d3d46;
+  border-radius: 999px; color: #9a9aa1; background: #202024;
+  font-size: 11px; line-height: 1.3;
+}
+.tap-fixed-field {
+  display: flex; align-items: center; gap: 10px; padding: 5px 0;
+  border-bottom: 1px solid #232327;
+}
+.tap-fixed-field:last-child { border-bottom: 0; padding-bottom: 1px; }
+.tap-fixed-label {
+  flex: 0 0 76px; width: 76px; color: #9a9aa1; font-size: 12.5px;
+  white-space: nowrap;
+}
+.tap-fixed-select { min-width: 0; padding: 6px 8px; font-size: 12.5px; }
+.tap-actual-params { margin-bottom: 12px; }
+.tap-actual-params .tap-insp-field:last-child { border-bottom: 0; }
+.tap-fixed-cascade {
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+}
+.tap-fixed-cascade .tap-fixed-select { flex: 1; width: 0; }
+.tap-fixed-divider { flex: none; color: #6a6a71; font-size: 12px; }
+.tap-fixed-select:disabled { color: #55555c; background: #131316; }
+
+/* 标题行右侧的小切换（查询 | LLM） */
+.tap-seg-mini {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: #141418; border: 1px solid #232327; border-radius: 8px;
+}
+.tap-seg-mini button {
+  padding: 3px 10px; font-size: 11.5px; font-weight: 400; color: #8a8a90;
+  background: none; border: none; border-radius: 6px; cursor: pointer;
+}
+.tap-seg-mini button:hover { color: #dcdce0; }
+.tap-seg-mini button.on { color: #16161a; background: #e9e9ee; font-weight: 500; }
+
+/* 变量行（components/tapflow/TapVarRow）：左「变量名」右「类型 + 值/引用」两列 */
+.tap-vrow {
+  /* 变量名列按 5 字宽定死（约 5em + 必填星），余量全给变量值 */
+  display: grid; grid-template-columns: 5.6em 1fr 18px;
+  align-items: center; gap: 6px; padding: 3px 0;
+}
+.tap-vrow.head { font-size: 11.5px; color: #6a6a71; padding: 2px 0 4px; }
+.tap-vrow.head .tap-vrow-name { padding-left: 4px; }
+.tap-vrow-name { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+/* 超出直接截断，不留省略号（输入框自身滚动即可，聚焦时能看全） */
+.tap-vrow-name .tap-insp-input.flat {
+  min-width: 0; padding: 3px 5px; font-size: 12.5px; text-overflow: clip;
+}
+.tap-vreq { flex: none; color: #e5484d; font-style: normal; font-size: 13px; line-height: 1; }
+.tap-vrow-val { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.tap-vtype {
+  flex: none; width: 46px; padding: 3px 2px 3px 5px; font-size: 11.5px; color: #8a8a90;
+  background: #1a1a1f; border: 1px solid #2a2a30; border-radius: 7px; outline: none;
+}
+.tap-vtype.fixed { width: auto; padding: 3px 7px; }
+.tap-vinput {
+  flex: 1; min-width: 0; padding: 3px 7px; font-size: 12px; color: #e6e6ea;
+  background: #1a1a1f; border: 1px solid #2a2a30; border-radius: 7px; outline: none;
+}
+.tap-vinput:focus { border-color: #3d3d46; }
+.tap-vinput::placeholder { color: #55555c; }
+.tap-vinput.area {
+  width: 100%; resize: vertical; line-height: 1.6; font-family: inherit;
+}
+/* JSON 变量：名与值上下排，值占满整行 */
+.tap-vrow.json {
+  grid-template-columns: 1fr 18px;
+  grid-template-areas: "name more" "val val";
+  align-items: start; row-gap: 4px;
+}
+.tap-vrow.json .tap-vrow-name { grid-area: name; align-items: center; }
+.tap-vrow.json .tap-vrow-more { grid-area: more; }
+.tap-vrow.json .tap-vrow-val { grid-area: val; align-items: flex-start; }
+/* 引用 chip：蓝色高亮的「节点 · 变量」+ 清除（不带图标，引用态靠颜色区分） */
+.tap-vref {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 2px 4px 2px 8px; font-size: 12px; color: #7cc4fa;
+  background: #121e2b; border: 1px solid #24466b; border-radius: 7px;
+}
+.tap-vref b {
+  flex: 1; min-width: 0; font-weight: 400; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-vref button {
+  flex: none; width: 15px; padding: 0; line-height: 1; font-size: 12px;
+  color: #5a8cb8; background: none; border: none; cursor: pointer;
+}
+.tap-vref button:hover { color: #fff; }
+.tap-vpick { position: relative; flex: none; }
+.tap-vpick-btn {
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #6a6a71; background: none;
+  border-radius: 7px; cursor: pointer;
+}
+.tap-vpick-btn:hover { color: #c9b8f5; }
+/* 行尾「⋯」：默认隐藏，hover 行或菜单展开时浮现 */
+.tap-vrow-more { position: relative; }
+.tap-vmore-btn {
+  width: 18px; height: 20px; padding: 0; line-height: 1; font-size: 14px; color: #6a6a71;
+  background: none; border: none; border-radius: 5px; cursor: pointer;
+  opacity: 0; transition: opacity .12s;
+}
+.tap-vrow:hover .tap-vmore-btn, .tap-vmore-btn:focus { opacity: 1; }
+.tap-vmore-btn:hover { color: #e9e9ee; background: #26262c; }
+/* 浮窗内的当前项与危险项 */
+/* 次要说明跟在名字后面：灰、小、不换行挤压主名 */
+.tap-pm-note { margin-left: 6px; font-style: normal; font-size: 11px; color: var(--muted); }
+.tap-pm-item.active { color: #fff; }
+.tap-pm-item.active em { color: var(--accent); }
+.tap-pm-item.danger { color: #e5484d; }
+.tap-pm-item.danger:hover { background: #2a1416; }
+.tap-pm-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid #2a2a30; }
+
+/* 分节标题：折叠按钮 + 方形「+」 */
+.tap-fold {
+  display: flex; align-items: center; gap: 5px; padding: 0; font: inherit;
+  color: inherit; background: none; border: none; cursor: pointer;
+}
+.tap-fold-arrow {
+  display: inline-block; font-size: 10px; color: #6a6a71;
+  transform: rotate(-90deg); transition: transform .12s;
+}
+.tap-fold-arrow.open { transform: none; }
+.tap-add-sq {
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #a9a2d8; background: #1d1a2b;
+  border-radius: 7px; cursor: pointer;
+}
+.tap-add-sq:hover { color: #fff; background: var(--accent); }
+
+/* 分节标题带右侧操作（如「+ 添加变量」） */
+.tap-insp-sec.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* 添加入参：纯文字按钮 + 浮窗（components/tapflow/TapParamDeclList） */
+.tap-param-add { position: relative; }
+.tap-param-add-btn {
+  padding: 2px 4px; font-size: 12.5px; font-weight: 400; color: #8a8a90;
+  background: none; border: none; cursor: pointer;
+}
+.tap-param-add-btn:hover { color: #e9e9ee; }
+.tap-param-menu {
+  position: absolute; right: 0; top: 100%; z-index: 40; min-width: 168px; padding: 6px;
+  background: #1b1b20; border: 1px solid #2f2f36; border-radius: 10px;
+  box-shadow: 0 14px 40px #000b;
+}
+/* portal 出去：脱离属性面板的 overflow 裁剪，位置由 JS 实测算。
+   pointer-events 显式声明：Radix 模态 Dialog 打开时会把 body 设成 none，
+   万一浮窗落在 body 上（非弹窗场景）也不至于点不动。 */
+.tap-param-menu.floating {
+  position: fixed; right: auto; top: auto; z-index: 3000; pointer-events: auto;
+  max-width: min(320px, calc(100vw - 16px)); overflow-y: auto; overscroll-behavior: contain;
+}
+/* 锚点只用来定位，不占空间也不吃事件 */
+.tap-pm-anchor { position: absolute; width: 0; height: 0; pointer-events: none; }
+.tap-pm-title {
+  padding: 6px 8px 4px; font-size: 11px; color: #6a6a71;
+}
+/* 菜单项是 div（不是 button）：避免继承全局按钮的渐变底与居中文字 */
+.tap-pm-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  font-size: 13px; font-weight: 400; color: #dcdce0; text-align: left;
+  border-radius: 7px; cursor: pointer; user-select: none;
+}
+.tap-pm-item > span { flex: 1; min-width: 0; }
+.tap-pm-item:hover, .tap-pm-item:focus-visible { background: #26262c; outline: none; }
+.tap-pm-item.dim { color: #55555c; cursor: default; }
+.tap-pm-item.dim:hover { background: none; }
+.tap-pm-item em { flex: none; font-style: normal; font-size: 11px; color: #55555c; }
+.tap-insp-field .k .req, .tap-insp-field .k i.req { color: #e5484d; font-style: normal; margin-left: 2px; }
+.tap-insp-input, .tap-insp-area {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 13px; color: #e6e6ea;
+  background: #1a1a1f; border: 1px solid #2a2a30; border-radius: 8px; outline: none;
+}
+.tap-insp-input:focus, .tap-insp-area:focus { border-color: #3d3d46; }
+.tap-insp-area { resize: vertical; line-height: 1.6; font-family: inherit; }
+/* 标题输入框直接坐在面板头部 */
+.tap-insp-title-input { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; }
+select.tap-insp-input { appearance: auto; }
+.tap-insp-field .tap-insp-input { flex: 1; width: auto; }
+.tap-insp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.tap-insp-chip {
+  padding: 3px 10px; font-size: 12px; color: #cfcfd4; background: #1c1c21;
+  border: 1px solid #2a2a30; border-radius: 999px;
+}
+.tap-insp-chip.pick { cursor: pointer; }
+.tap-insp-chip.pick:hover { border-color: #3d3d46; }
+.tap-insp-chip.pick.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.tap-insp-thumb { width: 100%; border-radius: 10px; border: 1px solid #2a2a30; }
+
+/* ── 质检段 ───────────────────────── */
+/* 必填未选：边框示警，不靠一行小字提醒 */
+.tap-insp-input.warn { border-color: #b3543a; }
+.tap-insp-input.mini { width: 88px; }
+/* 质检段：左标签右控件，一行一项。窄面板里这么排最省纵向空间，
+   标签列固定宽度，右侧控件一律撑满，视觉上对齐成一竖列 */
+.tap-qc-row {
+  display: grid; grid-template-columns: 40px 1fr; align-items: center;
+  gap: 10px; padding: 4px 0;
+}
+.tap-qc-row > .k { font-size: 12.5px; color: #9a9aa1; }
+.tap-qc-row > .tap-insp-input { margin: 0; }
+/* 开关外观全在 base.css 的 .switch，这里不重写：页面级按钮复位已用
+   :where(:not(.switch)) 放过它，再抄一份反而会把胶囊态 .switch.labeled 压回 34×20 */
+/* 时机只有两档，用面板里通用的分段控件；解释文字放段末，不占行 */
+.tap-qc-seg { justify-self: start; }
+.tap-qc-seg button { min-width: 46px; }
+/* 知识：一行显示已选摘要，点开在浮窗里勾选（勾过的带 ✓，再点取消） */
+.tap-qc-pick { position: relative; display: block; min-width: 0; }
+.tap-page .tap-qc-pick-btn {
+  width: 100%; justify-content: flex-start; padding: 6px 9px; border-radius: 8px;
+  background: #131316; color: #cfcfd4; font-size: 12.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; text-align: left;
+}
+.tap-page .tap-qc-pick-btn:hover { background: #1a1a1f; }
+/* 重试要花钱：把账写在脸上，别让人以为是免费的 */
+.tap-insp-note.cost { color: #c9a227; }
+/* ── 系统提示词里的引用方块（与生成条的参考图条同一形态） ── */
+/* 方块贴在提示词上方，超出自动换行；整体是一个输入框 */
+.tap-charter-box {
+  border: 1px solid #2a2a30; border-radius: 10px; background: #131316;
+  padding: 8px; display: flex; flex-direction: column; gap: 8px;
+}
+.tap-charter-box:focus-within { border-color: #4a6ea8; }
+.tap-charter-refs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* 没有引用时只剩一个「+」，不占额外高度 */
+/* @ 菜单的锚点：0 尺寸定位点，落在光标处，浮窗据它算位置 */
+.tap-charter-wrap { position: relative; }
+.tap-at-anchor { position: absolute; width: 0; height: 0; }
+
+/* 提示词正文是 contenteditable div（不是 textarea）——要支持行内标签。
+   自身不画边框也不高亮，焦点态由外层 .tap-charter-box 统一表达 */
+.tap-page .tap-charter-area {
+  width: 100%; min-height: 96px; border: 0; background: transparent;
+  color: #d2d2d7; font: inherit; font-size: 13px; line-height: 1.9; padding: 2px;
+  white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
+}
+.tap-page .tap-charter-area:hover,
+.tap-page .tap-charter-area:focus,
+.tap-page .tap-charter-area:focus-visible { border: 0; outline: none; box-shadow: none; }
+/* 空内容时显示占位文字（contenteditable 没有原生 placeholder） */
+.tap-charter-area:empty::before {
+  content: attr(data-placeholder); color: #55555b; pointer-events: none;
+}
+
+/* 行内标签：「请参考【图片小明】生成」里的那一块，整体不可编辑、退格整块删 */
+.tap-ptag {
+  display: inline; padding: 1px 2px; border-radius: 4px; margin: 0 1px;
+  font-size: 12.5px; color: #cfd6e6; background: #23283a;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  user-select: none; cursor: default;
+}
+.tap-ptag.image, .tap-ptag.video { color: #a8c8ff; background: #1e2a3f; }
+.tap-ptag.audio { color: #9fd8bb; background: #1c2a24; }
+.tap-ptag.ctx { color: #cdb4f5; background: #272040; }
+
+/* 框内底部的专业能力（技能/知识库/工具）：与正文之间一条分隔线，条目仍是一行一个 */
+.tap-charter-foot { border-top: 1px solid #26262c; padding-top: 6px; }
+.tap-charter-foot .tap-insp-sec { margin: 0 0 2px; font-size: 12.5px; }
+.tap-charter-foot .tap-insp-note { margin-bottom: 2px; }
+.tap-charter-foot .tap-picked { padding: 5px 0 5px 4px; }
+/* 最后一条不要下边框，免得和框底边贴成双线 */
+.tap-charter-foot .tap-picked:last-child { border-bottom: 0; }
+
+.tap-cref {
+  position: relative; width: 34px; height: 34px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1e1e22; border: 1px solid #33333a; color: #b4b4ba;
+  font-size: 15px; overflow: hidden; flex: none;
+}
+.tap-cref img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 类型配色：一眼分清引的是文本、图片还是上下文 */
+.tap-cref.image, .tap-cref.video { border-color: #3d5a80; color: #6ea8fe; }
+.tap-cref.audio { border-color: #4a6b52; color: #7fbf9a; }
+.tap-cref.ctx { border-color: #4d3d6b; color: #b18cf0; }
+.tap-cref-del {
+  position: absolute; top: -1px; right: -1px; width: 15px; height: 15px;
+  border-radius: 0 7px 0 7px; background: #000c; color: #e8e8ea;
+  font-size: 11px; line-height: 1; opacity: 0; transition: opacity .12s;
+}
+.tap-cref:hover .tap-cref-del { opacity: 1; }
+.tap-cref-del:hover { background: #e5484d; }
+
+.tap-cref-add-wrap { position: relative; display: inline-flex; }
+.tap-page .tap-cref-add {
+  width: 34px; height: 34px; border-radius: 8px; font-size: 13px;
+  background: #1a1a1d; color: #85858c;
+}
+.tap-page .tap-cref-add:hover { background: #232329; color: #d2d2d7; }
+/* 生成条上从项目设定继承来的参数（比例/画风）：**只标灰**，与本节点自己的参数
+   区分开——它们要改得去项目页，不是在这里。不加虚下划线也不加 help 光标：
+   这排本来就都是只读回显，画条虚线反而像个能点开的链接。hover 的「项目设定」
+   title 还在（TapflowPromptBar），要交代来路够了。 */
+.tap-prompt-foot .tap-param.inherit { color: #7c7c84; }
+
+/* 生成条里的「上游参考」：有图给缩略图，没图（文本卡）给图标 + 标题。
+   存的是节点 id，所以上游重跑后这里显示的永远是最新那份。
+   与右侧「+」同高同底色同圆角（44/10/#232327）：这一排本就是一组同级的「参考位」，
+   描边 + 矮一截会让它看着像另一种控件。圆角写 10 不是 12——「+」是 button，
+   实际吃的是 `.tap-page button:where(:not(.switch))` 那条 (0,1,1) 的 10px。 */
+.tap-ref-node {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 10px; border-radius: 10px; flex: none; max-width: 180px;
+  background: #232327; border: none; color: #b4b4ba; font-size: 12.5px;
+}
+.tap-ref-node.img { width: 44px; padding: 0; overflow: hidden; }
+.tap-ref-node.img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tap-ref-node em {
+  font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-ref-del {
+  position: absolute; top: 0; right: 0; width: 16px; height: 16px;
+  border-radius: 0 10px 0 8px; background: #000c; color: #e8e8ea;
+  font-size: 11px; line-height: 1; opacity: 0; transition: opacity .12s;
+}
+.tap-ref-node:hover .tap-ref-del { opacity: 1; }
+.tap-ref-del:hover { background: #e5484d; }
+.tap-ref-add-wrap { position: relative; display: inline-flex; }
+
+/* 生成条右上角的状态徽标：节点内部跑到哪一段（装配/质检/出图），跑完留质检分数。
+   贴在条子上边缘外侧——条内寸土寸金，压在里面会挤掉参考图那一排 */
+.tap-prompt-bar { position: relative; }
+.tap-stage-badge {
+  position: absolute; right: 10px; top: -12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px; font-size: 11.5px; line-height: 1.6;
+  background: #1d1d22; border: 1px solid #33333a; color: #b4b4ba;
+  box-shadow: 0 4px 14px #0008;
+}
+.tap-stage-badge.run { color: #d2d2d7; border-color: #4a6ea8; }
+.tap-stage-badge.ok { color: #4cc38a; border-color: #2c5c44; background: #12211a; gap: 1px; }
+.tap-stage-badge.err { color: #e5484d; border-color: #5c2c2e; background: #211214; }
+/* 有问题清单时徽标可点：加个箭头提示这里能展开，别让人以为只是个结果标签 */
+.tap-stage-badge.clickable { cursor: pointer; }
+.tap-page .tap-stage-badge.clickable:hover { filter: brightness(1.25); }
+.tap-stage-caret { font-style: normal; margin-left: 4px; display: inline-block; transition: transform .15s; }
+.tap-stage-caret.up { transform: rotate(180deg); }
+
+/* 质检原因：摊在提示词正上方——判据说了什么，紧挨着要改的那段文字。
+   清单长了自己滚，不把整条生成条撑到满屏。
+   不描边：生成条内部靠底色分层，红框会把这块变成一个「弹窗」，抢走提示词的注意力；
+   红色只留在标题的图标与文字上，足够表达「没过」。 */
+.tap-qc-why {
+  margin: 2px 0 8px; padding: 8px 10px; border-radius: 10px;
+  background: #2a1a1c; border: none;
+  max-height: 132px; overflow-y: auto;
+}
+.tap-qc-why-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #e5484d; margin-bottom: 4px;
+}
+.tap-qc-why ul { margin: 0; padding-left: 18px; }
+.tap-qc-why li { font-size: 12.5px; line-height: 1.7; color: #d2d2d7; }
+.tap-qc-issue-edit {
+  display: block; width: 100%; min-height: 21px; margin: 0; padding: 0 4px;
+  resize: none; overflow: hidden; border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: inherit; font: inherit; line-height: inherit;
+}
+.tap-qc-issue-edit:hover { background: #ffffff08; }
+.tap-qc-issue-edit:focus {
+  outline: none; border-color: #5c2c2e; background: #1f1416;
+}
+.tap-qc-why-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.tap-qc-hint { font-size: 11.5px; color: #8a8a92; order: -1; margin-right: auto; }
+/* 「重新生成」：红框区域里的主操作，用质检那套红调，别抢生成条底部发送键的位置 */
+.tap-page .tap-qc-regen {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border-radius: 8px; font-size: 12.5px;
+  background: #3a1c1f; color: #ff8a8e; border: 1px solid #5c2c2e;
+}
+.tap-page .tap-qc-regen:hover:not(:disabled) { background: #4a2327; color: #ffb0b3; }
+.tap-page .tap-qc-regen:disabled { opacity: .6; cursor: default; }
+
+/* 节点卡右上角的胶囊（跳过/失败）：与生成条那枚同款，只是贴在卡内右上。
+   字号偏大是刻意的——画布常在 0.4 倍缩放下看，太小根本认不出 */
+/* 跨在卡片上沿偏上（卡片顶边 = 标题行 26px 处；再抬 8px，让它三分之二在卡外，
+   与生成条那枚「质检中」的悬浮感一致）。挂在 .tap-node 上而不是卡内：
+   卡片 overflow:hidden，放里面会被裁掉/压住内容 */
+.tap-node-badge {
+  position: absolute; top: 5px; right: 10px; z-index: 4;
+  padding: 3px 10px; border-radius: 999px; font-size: 13px; line-height: 1.5;
+  background: #1d1d22; border: 1px solid #33333a; color: #b4b4ba;
+  box-shadow: 0 4px 14px #0008;
+}
+.tap-node-badge.skip { color: #c9a227; border-color: #5c4a1e; background: #211d12e6; }
+.tap-node-badge.err { color: #e5484d; border-color: #5c2c2e; background: #211214e6; }
+.tap-node-badge.ok { color: #4cc38a; border-color: #2c5c44; background: #12211ae6; }
+.tap-insp-err {
+  margin-top: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.6;
+  color: #ff9c9c; background: #2a1416; border: 1px solid #47201f; border-radius: 8px;
+}
+.tap-qc-state.pass { color: #4cc38a; }
+.tap-qc-state.fail { color: #e5484d; }
+
+/* ── 运行面板：参数 / 日志 两个 tab + 底部运行按钮 ─────────────── */
+.tap-run-panel .tap-insp-head .tap-insp-title {
+  display: flex; align-items: center; gap: 6px; margin-right: auto;
+}
+.tap-run-panel .tap-insp-head .tap-seg-mini { margin-right: 8px; }
+/* 运行范围：标签 + 下拉一行 */
+.tap-range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tap-range-tag {
+  flex: none; width: 76px; padding: 5px 0; font-size: 12.5px; font-weight: 400;
+  color: #8a8a90; background: #1a1a1f; border-radius: 8px;
+  cursor: pointer;
+}
+.tap-page .tap-range-tag:hover { color: #dcdce0; background: #22222a; filter: none; }
+.tap-page .tap-range-tag.on {
+  color: #16161a; background: #e9e9ee; font-weight: 500;
+}
+.tap-range-row .tap-insp-input { flex: 1; min-width: 0; }
+/* 逐节点的「缺才跑 / 重跑」行：开关 + 节点名 + 当前档位 */
+.tap-force-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-force-mode {
+  flex: none; font-style: normal; font-size: 11.5px; padding: 2px 8px;
+  border-radius: 999px; color: #7c7c84; background: #1a1a1f; border: 1px solid #26262c;
+}
+.tap-force-mode.on { color: #c9a227; border-color: #5c4a1e; background: #211d12; }
+
+/* 运行按钮跟着参数走（不再钉在面板底部）：参数只有几行时，钉底会让按钮
+   离最后一个输入框隔着大半屏空白。
+   高度与 .tap-run-back 等其它整宽按钮一致（padding 10px），主次靠白底黑字区分，
+   不再靠加高——加高了反而在窄面板里显得笨重。 */
+.tap-page .tap-run-btn {
+  width: 100%; margin-top: 10px; padding: 10px 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14.5px; font-weight: 600; color: #b9b9c0;
+  background: #131316; border-radius: 10px; cursor: pointer;
+}
+/* 必填齐了 = 现在可以跑：白底黑字，一眼看得出来 */
+.tap-page .tap-run-btn.ready {
+  background: #fff; color: #0e0e11;
+}
+.tap-page .tap-run-btn.ready:hover:not(:disabled) { background: #e9e9ee; }
+.tap-page .tap-run-btn:disabled { opacity: .55; cursor: default; }
+/* 「执行」卡片：运行范围两行 + 运行按钮收在一张卡里，与上面的入参分开 —— 都是
+   「怎么跑」，改完范围手不用挪就能按运行。
+   底色跟画布同款：这张卡是「往画布上发起一次运行」，视觉上归到画布那侧 */
+.tap-run-card {
+  margin-top: 14px; padding: 10px 12px 12px; background: #060607;
+}
+.tap-run-card .tap-range-row:last-of-type { margin-bottom: 0; }
+.tap-run-card .tap-insp-note { margin: 6px 0 0; }
+
+/* ── 开始节点：项目基本信息区 + 入参区 ─────────────── */
+/* 撑满卡片：.tap-node-card 是 justify-content:center 的 flex 容器，
+   不撑满的话内容按自身宽度居中，两侧凭空多出对称留白（看着像左边距特别宽） */
+.tap-start-body { display: flex; flex-direction: column; width: 100%; align-self: stretch; }
+/* 项目设定卡：项目名 / 画风示意图（右下角叠比例）/ 真人虚拟 + 画风文字 / 主线 / 文风。
+   未选项目时是同一套骨架的占位态，位置不跳。全部只读——这些是项目的属性不是画布的。 */
+/* 项目设定卡：不再画自己的边框——它已经在节点卡里了，套两层框只会显得局促。
+   靠留白与层次分区，颜色压到最低（参考面板那种「深底 + 一块更深的预览区」的做法）。 */
+/* 上下内边距对称：入参已经挪进右列，卡底不再由参数区的 padding 兜着，
+   留 0 会让示意图直接贴到卡片下沿，与顶部明显不等 */
+.tap-project-card {
+  padding: 12px;
+  font-size: 13px; line-height: 1.7; color: #b9b9c0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.tap-project-card p { margin: 0; }
+.tap-project-card b { color: #dcdce0; font-weight: 600; margin-right: 4px; }
+.tap-pc-title { font-size: 17px; font-weight: 600; color: #e9e9ee; letter-spacing: .01em; }
+.tap-project-card.empty .tap-pc-title { color: #55555b; font-weight: 400; }
+
+/* 主区：左示意图 + 右侧信息，图占比更大（它才是「这个项目长什么样」的答案） */
+/* 左列**定宽**：加宽卡片时多出来的空间要全给右边的参数区，画风示意图不跟着变大
+   （用 1.4fr 1fr 的话两列会一起变宽，参数区照样挤） */
+.tap-pc-main { display: grid; grid-template-columns: 224px 1fr; gap: 14px; align-items: start; }
+.tap-pc-art {
+  position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden;
+  background: #0d0d0f; border: 1px solid #232327;
+  display: flex; align-items: center; justify-content: center;
+}
+.tap-pc-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tap-pc-art-empty { font-size: 13px; color: #4e4e55; }
+/* 没有封面时，画风文字顶上——它是「这个项目长什么样」的兜底答案，不跟图并排占位 */
+.tap-pc-art-text {
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.65; color: #85858c;
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* 比例角标压在示意图右下角：它描述的就是这张图的画幅 */
+.tap-pc-aspect {
+  position: absolute; right: 8px; bottom: 8px;
+  padding: 3px 10px; border-radius: 8px; font-size: 12px;
+  background: #000000b3; border: 1px solid #ffffff1f; color: #d2d2d7;
+}
+.tap-pc-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* 画风文字：最多四行，超出省略——全文在项目页 */
+.tap-pc-style {
+  font-size: 12.5px; line-height: 1.65; color: #85858c;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tap-pc-line { font-size: 13px; color: #b9b9c0; }
+.tap-pc-line.dim { color: #85858c; }
+/* 未选项目时顶替故事线/文风的「整体设定」：整幅一块，与上面的示意图同一档深底 */
+.tap-pc-overall {
+  padding: 14px; min-height: 74px; border-radius: 12px;
+  background: #0d0d0f; border: 1px solid #232327;
+  font-size: 13px; line-height: 1.7; color: #b9b9c0;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.tap-pc-overall.empty { color: #4e4e55; }
+
+/* 真人/虚拟用全局 .seg 按钮组（components/Seg）。这里只压两处画布特有的差异：
+   ① tapflow 内按钮被统一复位成「无底色图标钮」，要把 .seg-btn 的选中底色要回来；
+   ② 画布上位置紧，内边距比详情页收一些。其余（圆角/配色/字重）沿用全局规范。 */
+/* 底色与左边的画风示意图取同一档深黑：两者是并排的一行，底色不一致会显得按钮组是浮的 */
+.tap-pc-side .seg {
+  background: #0d0d0f; border: 1px solid #232327; border-radius: 12px;
+}
+.tap-page .tap-pc-side .seg-btn { padding: 5px 12px; font-size: 12.5px; color: #7c7c84; }
+.tap-page .tap-pc-side .seg-btn.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+}
+
+/* ── 新节点类型：开始（内列入参）/ 质检圆点 / 关联 / 工作流 ─────────────── */
+/* 参数区：左标签 / 右值，一行一项。
+   **不用彩色左边框**——一竖排彩条把视线全吸过去了，而参数本身是次要信息；
+   类型差异靠标签文字与右侧值的排版表达就够。行距给足，参考面板式的疏朗感。 */
+.tap-param-group {
+  padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 6px;
+}
+/* 排进设定卡右列时不再自带外边距——外层已经有卡的内边距与列间距了 */
+.tap-pc-side .tap-param-group { padding: 0; }
+.tap-param-row { display: flex; align-items: baseline; gap: 10px; }
+.tap-param-row .k { flex: none; min-width: 40px; font-size: 13px; color: #8a8a90; }
+.tap-param-row .k i { color: #e5484d; font-style: normal; margin-left: 2px; }
+/* 左对齐：ctx 参数不显示标签（值本身就带「章/场景」字样），右对齐会让它孤零零飘在最右 */
+.tap-param-row .v {
+  flex: 1; min-width: 0; font-size: 13px; color: #e9e9ee;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tap-param-row .v.empty { color: #55555b; }
+/* 编排态的入参「声明」行：参数名 + 类型标签，没有值（值是运行时的事） */
+.tap-param-row.decl .k { flex: 1; font-size: 13px; color: #e9e9ee; min-width: 0; }
+.tap-param-row.decl .t {
+  flex: none; padding: 2px 9px; font-size: 11.5px; border-radius: 999px;
+  color: #8a8a90; background: #1c1c21; border: 1px solid #2a2a30;
+}
+.tap-param-empty { padding: 16px; text-align: center; font-size: 13px; color: #6a6a71; }
+/* 质检 = 一个圆点，没有外层方卡（去掉 .tap-node-card 的底/框/最小高度） */
+.tap-node.is-qc .tap-node-card,
+.tap-node.is-qc.selected .tap-node-card {
+  background: none; border: none; box-shadow: none; min-height: 0; overflow: visible;
+}
+.tap-card-qc { display: flex; align-items: center; justify-content: center; }
+.tap-qc-dot {
+  width: 132px; height: 132px; border-radius: 50%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; font-size: 30px;
+  color: #6a6a71; background: #1a1a1f; border: 2px solid #2a2a30;
+}
+.tap-qc-dot em { font-style: normal; font-size: 13px; }
+.tap-qc-dot.pass { color: #4cc38a; border-color: #2c5c44; background: #12211a; }
+.tap-qc-dot.fail { color: #e5484d; border-color: #5c2c2e; background: #211214; }
+.tap-node.is-qc.selected .tap-qc-dot { border-color: #e9e9ee; box-shadow: 0 0 0 3px #e9e9ee33; }
+.tap-link-body, .tap-flow-body {
+  padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;
+}
+.tap-link-act {
+  align-self: flex-start; padding: 3px 9px; border-radius: 6px; color: #d8b45c;
+  background: #221c0f; border: 1px solid #3c3119;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.tap-link-target { display: flex; align-items: center; gap: 6px; color: #8a8a90; }
+.tap-flow-ref { display: flex; align-items: center; gap: 7px; color: #dcdce0; font-size: 13px; }
+.tap-flow-note { color: #6a6a71; font-size: 11.5px; }
+
+/* 系统工具节点与文本节点同尺寸：结果正文占满剩余区域，选中后可独立滚动。 */
+.tap-tool-node-body {
+  display: flex; flex-direction: column; align-self: stretch; width: 100%; height: 100%;
+  min-height: 0; gap: 13px; padding: 16px 14px; box-sizing: border-box;
+}
+.tap-tool-node-name { display: flex; align-items: center; gap: 8px; color: #e2e2e6; font-size: 14px; font-weight: 600; }
+.tap-tool-node-name .icon { color: #bfa4ff; font-size: 18px; flex: none; }
+.tap-tool-node-meta { display: flex; align-items: center; gap: 8px; color: #85858d; font-size: 11px; }
+.tap-tool-node-meta em { color: #bfa4ff; font-style: normal; }
+.tap-tool-node-meta .icon { font-size: 12px; color: #686873; }
+.tap-tool-node-result {
+  flex: 1; min-height: 0; margin: 0; overflow: hidden;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  color: #c6e7d2; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.tap-condition-body { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; }
+.tap-condition-row { height: 34px; box-sizing: border-box; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 3px 0 7px; border: 1px solid #313139; background: #202025; border-radius: 5px; color: #b7b7c0; font-size: 12px; }
+.tap-condition-row.active { border-color: #8a72d8; color: #eeeaff; background: #2a2437; }
+.tap-condition-label { color: #d3c0ff; font-weight: 600; white-space: nowrap; }
+.tap-condition-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #898994; }
+.tap-condition-port { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #6c5e90; color: #c9b9ff; cursor: crosshair; flex: none; }
+.tap-condition-port:hover { background: #3a3151; }
+.tap-condition-edit-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: center; margin: 8px 0; }
+.tap-condition-edit-row strong { color: #d3c0ff; font-size: 12px; }
+.tap-condition-edit-row .tap-insp-input { min-width: 0; }
+.tap-node.is-tool.selected .tap-tool-node-result {
+  overflow-y: auto; user-select: text; cursor: text;
+}
+.tap-runtime-json { margin: 8px 0 0; max-height: 260px; overflow: auto; white-space: pre-wrap; color: #c8c8d0; font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.tap-tool-outputs { border-top: 1px solid #29292e; }
+.tap-tool-output { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid #25252a; font-size: 12px; }
+.tap-tool-output-name { color: #dfdfe3; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.tap-tool-output-type { color: #a78bfa; font-size: 11px; }
+.tap-tool-output-items { grid-column: 1 / -1; color: #777780; font-size: 11px; overflow-wrap: anywhere; }
+.tap-loop-config .tap-insp-label { display: block; margin: 8px 0 5px; color: #85858d; font-size: 11px; }
+.tap-loop-body {
+  position: relative; box-sizing: border-box; width: 100%; height: 100%; min-height: 0;
+  align-self: stretch;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+}
+.tap-loop-float {
+  position: absolute; z-index: 6; left: auto; right: -24px; top: calc(50% + 13px);
+  transform: translateY(-50%); pointer-events: none;
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: #1d1d22; border: 1px solid #4d436f;
+  color: #9d8cff; box-shadow: 0 7px 20px #000a, 0 0 12px #7968ff42;
+}
+.tap-loop-float .icon { font-size: 31px; }
+.tap-loop-action {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 10px;
+  color: #dedee3; font-size: 15px; font-weight: 600;
+}
+.tap-loop-action .icon { color: #aaaab2; font-size: 28px; }
+.tap-loop-action > span { line-height: 1.35; text-align: center; white-space: nowrap; }
+
+/* ── 运行态右侧 AI 对话面板 ─────────────── */
+/* 对话面板样式已迁至 components/chat/chat.css（公共组件，画布内外通用）。
+   这里保留生成条胶囊编辑器的 .tap-chip（内联胶囊）——与对话里的建议 chip 无关。 */
+.tap-page .tap-chip:hover { background: #232328; }
+
+/* ── 生产态画布加载失败的兜底条（业务页嵌入用） ───── */
+.tap-launch-err {
+  position: fixed; inset: auto 0 24px 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 0 auto; width: fit-content; max-width: 80vw;
+  padding: 10px 16px; border-radius: 10px;
+  background: #2a1c1e; border: 1px solid #5a2a2e; color: #e5484d; font-size: 13px;
+}
+.tap-launch-err button { padding: 4px 12px; border-radius: 8px; font-size: 12px; }
+
+.tap-window-error {
+  min-height: 100vh; display: grid; place-content: center; justify-items: center;
+  gap: 12px; background: #060607; color: #e8e8ea;
+}
+.tap-window-error p { margin: 0; color: #b8b8be; }
+.tap-window-error button {
+  border: 1px solid #3b3b42; border-radius: 8px; padding: 7px 14px;
+  background: #1a1a1e; color: #e8e8ea; cursor: pointer;
+}
+
+/* 节点标题上的「引用了另一张工作流」标识：只有一枚链接图标（流程名在 tooltip 里）。
+   subflow 节点与普通文本卡长得一样，不标就看不出这一步是引用来的 */
+.tap-node-ref {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 6px; padding: 1px 5px; border-radius: 9px;
+  font-style: normal; font-size: 10.5px; line-height: 16px;
+  background: #1f2a3a; border: 1px solid #2f4664; color: #8ab4f8;
+}
+
+/* 生成条右下角的发送组：左侧三态菜单 + 右侧固定「按需生成」按钮。 */
+.tap-send-group {
+  position: relative; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px; border-radius: 19px;
+  background: #26262b; border: 1px solid #33333a;
+}
+.tap-rewrite {
+  flex: none; display: inline-flex; align-items: center;
+  /* padding: 4px 10px; */
+  border-radius: 15px; cursor: pointer;
+  font-size: 12px; color: #a6a6ac; white-space: nowrap;
+  background: none; border: 0; padding-left: 8px;
+}
+.tap-page .tap-rewrite:hover {
+  /* color: #e8e8ea; */
+  /* background: #303038; */
+}
+.tap-rewrite-caret {
+  display: inline-flex; margin-right: 1px; font-size: 11px; line-height: 1;
+  transform-origin: center; transition: transform .15s ease;
+}
+.tap-rewrite-caret.open { transform: rotate(180deg); }
+.tap-send-menu {
+  position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 32;
+  display: flex; flex-direction: column; gap: 2px; min-width: 200px;
+  padding: 6px; border-radius: 12px;
+  background: #1c1c20; border: 1px solid #34343a;
+  box-shadow: 0 16px 42px #000c;
+}
+.tap-page .tap-send-menu-item {
+  width: 100%; justify-content: space-between;
+  padding: 8px 10px; border-radius: 8px;
+  color: #bdbdc4; font-size: 12px; white-space: nowrap;
+}
+.tap-page .tap-send-menu-item:hover,
+.tap-page .tap-send-menu-item.selected {
+  background: #29292e; color: #f0f0f3;
+}
+.tap-send-menu-check { margin-left: 18px; color: #8ab4f8; }
+.tap-send-group .tap-send-btn { width: 30px; height: 30px; }
+
+/* 参考图节点：整张卡面是上传入口（label 包住媒体区），点一下选文件 */
+.tap-upload-hit {
+  display: block; width: 100%; cursor: pointer; position: relative;
+  border-radius: inherit;
+}
+.tap-upload-hit:hover .tap-empty { color: #8ab4f8; }
+.tap-upload-hit::after {
+  content: '点击上传参考图'; position: absolute; left: 0; right: 0; bottom: 8px;
+  text-align: center; font-size: 11px; color: #8a8a92; pointer-events: none;
+  opacity: 0; transition: opacity .15s ease;
+}
+.tap-upload-hit:hover::after { opacity: 1; }
+.tap-upload-hit:has(img)::after { color: #c9c9cf; text-shadow: 0 1px 4px #000c; }
+
+/* 出图节点的静态参考图条：卡面下方一行小缩略图 + 上传按钮（编辑态） */
+.tap-node-refimgs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin-top: 4px; padding: 0 2px;
+}
+.tap-refimg {
+  position: relative; width: 40px; height: 40px; border-radius: 6px;
+  overflow: hidden; border: 1px solid #2b2b30; background: #141416; flex: none;
+}
+.tap-refimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tap-refimg-del {
+  position: absolute; top: 0; right: 0; width: 14px; height: 14px;
+  display: none; align-items: center; justify-content: center;
+  border: 0; border-radius: 0 0 0 6px; background: #000b; color: #c9c9cf;
+  cursor: pointer; padding: 0; line-height: 1;
+}
+.tap-refimg-del svg { width: 9px; height: 9px; }
+.tap-refimg:hover .tap-refimg-del { display: block; }
+.tap-refimg-add {
+  display: inline-flex; align-items: center; gap: 3px; height: 24px;
+  padding: 0 8px; border-radius: 6px; border: 1px dashed #3a3a40;
+  color: #8a8a92; font-size: 11px; cursor: pointer; user-select: none;
+}
+.tap-refimg-add:hover { color: #8ab4f8; border-color: #8ab4f8; }
+.tap-refimg-add svg { width: 11px; height: 11px; }
+
+/* ---- @ 提及（2026-09-17）：输入 @ 弹上游参考列表，选中插入「@标题」并挂参考 ---- */
+.tap-mention-host { display: block; position: relative; }
+.tap-mention-menu {
+  position: absolute; left: 8px; bottom: calc(100% + 6px); z-index: 33;
+  display: flex; flex-direction: column; gap: 2px; min-width: 220px; max-width: 320px;
+  padding: 6px; border-radius: 12px;
+  background: #1c1c20; border: 1px solid #34343a;
+  box-shadow: 0 16px 42px #000c;
+}
+.tap-page .tap-mention-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px; text-align: left;
+  color: #bdbdc4; font-size: 12px;
+}
+.tap-page .tap-mention-item:hover { background: #29292e; color: #f0f0f3; }
+.tap-mention-item img {
+  width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex: none;
+}
+.tap-mention-item svg { flex: none; opacity: .7; }
+.tap-mention-item em { font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-mention-hint { padding: 4px 8px 2px; color: #6f6f78; font-size: 11px; }
+
+/* 参考缩略图序号角标：与提示词里的 @图片N / 提交参考图顺序一一对应 */
+.tap-ref-node .tap-ref-no {
+  position: absolute; left: 2px; top: 2px; z-index: 1;
+  min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #000c; color: #fff; font-size: 10px; font-style: normal; line-height: 1;
+}
+
+/* ---- 胶囊编辑器（2026-09-17）：textarea → contenteditable，@图片N 显示为
+   带圆形小缩略图的胶囊；序列化仍是纯文本，后端协议不变 ---- */
+.tap-prompt-edi {
+  width: 100%; min-height: 62px; max-height: 260px; overflow-y: auto;
+  padding: 8px 10px; border-radius: 10px;
+  background: #1a1a1e; color: #e8e8ec;
+  font-size: 13px; line-height: 1.65; letter-spacing: normal;
+  white-space: pre-wrap; word-break: break-word;
+  outline: none; caret-color: #8ab4f8; cursor: text;
+}
+.tap-prompt-edi:empty::before {
+  content: attr(data-ph); color: #5c5c66; pointer-events: none; display: block;
+}
+.tap-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 9px 1px 3px; margin: 0 3px; border-radius: 999px;
+  background: #2c2c33; border: 1px solid #40404a;
+  font-size: 12px; line-height: 18px; color: #cdd3f6;
+  vertical-align: middle; user-select: none; cursor: default;
+}
+.tap-chip img {
+  width: 16px; height: 16px; border-radius: 50%; object-fit: cover;
+  display: block; flex: none; background: #000;
+}
+.tap-chip b { font-weight: 500; }

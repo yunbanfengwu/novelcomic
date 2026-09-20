@@ -1,0 +1,31 @@
+/* 跳集分页：44px 方块、圆角 4px、无边框（背景态区分）；放视频页底部居中 */
+.pager { position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; padding: 2px 4px; }
+.pager-btn {
+  min-width: 44px; height: 44px; padding: 0 10px;
+  background: var(--bg-soft); color: var(--dim); border: 0; border-radius: 4px;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s;
+}
+.pager-btn:hover:not(:disabled) { color: var(--text); background: var(--card-hover); filter: none; }
+.pager-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.pager-btn:disabled { opacity: .4; cursor: default; }
+.pager-total {
+  height: 44px; padding: 0 12px; margin-left: 4px; flex: none;
+  background: var(--bg-soft); color: var(--dim); border: 0; border-radius: 4px;
+  font-size: 14px; cursor: pointer; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.pager-total:hover { color: var(--text); background: var(--card-hover); }
+.pager-total-caret { margin-left: 4px; font-size: 15px; line-height: 1; }
+
+/* 全部集浮窗：锚在「共 N 集」按钮右上方向上弹，一行 5 个方块，超高可纵向滚动 */
+.pager-total-wrap { position: relative; display: inline-flex; }
+.pager-all-backdrop { position: fixed; inset: 0; z-index: 40; }
+.pager-all {
+  position: absolute; bottom: calc(100% + 8px); right: 0;
+  z-index: 41; max-height: 280px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+.pager-all-grid { display: grid; grid-template-columns: repeat(5, 44px); gap: 6px; }

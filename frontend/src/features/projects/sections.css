@@ -1,0 +1,256 @@
+/* ═══ 项目详情分区（sections）共用布局 ═══ */
+
+/* 通用滚动容器：小说等可滚分区（min-width:0 防止在 flex 看板里横向撑破） */
+.section-scroll { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 22px 26px; }
+
+/* 分区空态（剧集/核心要素等无数据时）：不显示左栏列表，整区居中空提示 + 新建按钮 */
+.section-empty {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; gap: 16px;
+  align-items: center; justify-content: center; color: var(--dim);
+}
+/* 核心要素空态：AI 已判定的要素分组胶囊（tag 原子 + 图标随字号） */
+.elem-kind-chips {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 520px;
+}
+.elem-kind-chips .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+
+/* 总览分区：左侧二级菜单（基本信息/资料）+ 右侧内容（各自滚动，无分割线） */
+.overview-split { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.overview-pane { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 22px 26px; }
+
+/* 章节工作台分区：中间撑满 + 底部分页（均无分割线） */
+.video-section { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* 跳集分页条：常驻底部（视频模式在时间轴下方），无边框；分页居中，播放钮绝对定位左下角不挤占居中 */
+.video-pager {
+  position: relative;
+  flex-shrink: 0; display: flex; justify-content: center; align-items: center; padding: 8px 12px;
+}
+/* 左下角「从头逐镜播放」挂载点：与分页同一行，钉在左端 */
+.video-pager-lead { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; }
+/* 圆形黑底播放钮（无文字，图标同总览悬浮播放钮） */
+.vt-playall-fab { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  background: #000c; color: #fff; font-size: 18px; box-shadow: 0 2px 8px #0006;
+  transition: background .12s, transform .12s; }
+.vt-playall-fab:hover { background: #000; filter: none; transform: scale(1.06); }
+/* 工作台顶栏：三栏——标题(左) | tab 居中 | 动作(右)。左右等宽(1fr)保证中间 tab 真正居中。
+ * 外层 100% 宽可横向滚动 + 内层最小宽度：窄屏（移动端）整条横滑，不换行挤压 */
+.wb-tabbar-wrap { flex-shrink: 0; overflow-x: auto; }
+.wb-tabbar {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  padding: 12px 18px; min-width: 640px;
+}
+.wb-title { font-size: 15px; font-weight: 600; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 移动端：标题隐形、只留 60px 占位（给左上悬浮首页钮让位） */
+body.is-mobile .wb-title { width: 60px; opacity: 0; }
+/* 居中的 tab 区：分区组 + 间隔 + 正文/视频 组 */
+.wb-tabs { display: flex; align-items: center; justify-content: center; gap: 20px; }
+/* 右区：分区动作插槽 + 框架级「全屏/收起」（常驻右端） */
+.wb-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.wb-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+/* 头部动作组（自动/全屏、写正文）：复用 base 的 seg 外观；纯图标钮收窄
+ * .seg/.seg-btn 原子类已上收 base.css（components/Seg 公共组件） */
+.wb-action-seg .seg-btn.icon { padding: 7px 11px; }
+.wb-action-seg .seg-btn:disabled { opacity: .55; cursor: default; }
+
+/* 核心要素：左列表（参考正文左栏：可滚列表 + 底部动作条）+ 右详情（无分割线） */
+.elements-split { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: 360px minmax(0, 1fr); }
+.elements-list { min-height: 0; display: flex; flex-direction: column; }
+/* 年代锚条：常驻列表顶部不随滚动（角色/场景档案补全据此定妆造） */
+.era-bar { flex: none; display: flex; align-items: center; gap: 6px; margin: 10px 10px 4px; }
+.era-bar .era-label { flex: none; font-size: 12px; color: var(--dim); display: inline-flex; align-items: center; gap: 4px; }
+.era-bar .era-input { flex: 1; min-width: 0; font-size: 12px; padding: 5px 8px; }
+/* 素材库菜单项：生成/素材库 + 参考资料（样式同总览二级菜单 .subnav-item，一行一条，
+   常驻列表顶部、年代条下方，点击在右侧预览区展示） */
+.elem-menu { flex: none; display: flex; flex-direction: column; gap: 2px; margin: 0 8px 6px; }
+/* 「角色」分组标题行右侧的补全缺档入口（内联，靠右紧邻计数；点按钮不触发折叠） */
+.profile-batch-btn, .profile-batch-prog { margin-left: auto; }
+.profile-batch-prog { display: inline-flex; align-items: center; gap: 5px; }
+/* 详情区撑满高度：标题横幅常驻，左右两栏各自独立滚动、自适应铺满（弹窗态另见 .element-preview-card） */
+.elements-detail { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column;
+  container-type: inline-size; }
+/* 底部动作条见下方 .cat-foot/.elem-foot（tab 样式，参考正文/视频），常驻列表底部不随滚动 */
+@media (max-width: 1100px) { .elements-split { grid-template-columns: 280px minmax(0, 1fr); } }
+
+/* 要素详情：标题横跨整行，其下左图 + 右信息 */
+.element-preview { min-width: 0; container-type: inline-size; }
+.element-pane-split { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 14px; }
+.element-pane-media { min-width: 0; }
+.element-pane-media .sheet-img { width: 100%; }
+.element-pane-info { min-width: 0; }
+.element-pane-info > :first-child { margin-top: 0; }
+@container (max-width: 620px) { .element-pane-split { grid-template-columns: 1fr; } }
+
+/* 分区内（非弹窗）：要素详情撑满高度——标题横幅常驻，左右两栏各自独立滚动 */
+.elements-detail .element-preview { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.elements-detail .preview-head { flex: none; padding: 20px 26px 0; }
+.elements-detail .element-pane-split { flex: 1; min-height: 0; margin-top: 14px; padding: 0 26px;
+  align-items: stretch; }
+.elements-detail .element-pane-media,
+.elements-detail .element-pane-info { overflow-y: auto; min-height: 0; padding-top: 4px; padding-bottom: 22px; }
+/* 窄栏（容器 ≤620px 单列）：回退整区单滚动，避免两个半高滚动条并排 */
+@container (max-width: 620px) {
+  .elements-detail .element-pane-split { display: block; overflow-y: auto; }
+  .elements-detail .element-pane-media,
+  .elements-detail .element-pane-info { overflow: visible; }
+}
+
+/* 要素基本信息（名称/描述/出现章节）：展示态 = 文本 + 右上「编辑」；编辑态 = 表单 */
+.el-basic { display: flex; align-items: flex-start; gap: 10px; }
+.el-basic-text { flex: 1; min-width: 0; }
+.el-basic-brief { margin: 0; }
+.el-basic-appears { margin: 6px 0 0; }
+.el-basic-edit-btn { flex-shrink: 0; }
+.el-basic-edit { display: flex; flex-direction: column; gap: 10px; }
+.el-edit-row { display: flex; flex-direction: column; gap: 4px; }
+.el-edit-label { font-size: 12px; color: var(--dim); }
+.el-edit-acts { justify-content: flex-end; }
+
+/* 角色档案卡：结构化字段（年龄/性别/身份/时代服饰/体貌）可编辑 + AI 补全 */
+.char-profile { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--bg-soft); }
+.char-profile .cp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.char-profile .cp-title { font-size: 13px; color: var(--dim); display: inline-flex; align-items: center; gap: 5px; }
+.char-profile .cp-hints { width: 100%; margin-top: 8px; }
+.char-profile .cp-fields { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.char-profile .cp-row { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 8px; align-items: start; }
+.char-profile .cp-label { font-size: 12px; color: var(--dim); padding-top: 6px; }
+.char-profile .cp-input { width: 100%; font-size: 13px; resize: vertical; }
+.char-profile .cp-empty { margin: 8px 0 2px; font-size: 12px; line-height: 1.5; }
+
+/* 火山入库入口/状态徽标（角色档案头部） */
+.ark-lib { display: inline-flex; align-items: center; gap: 6px; }
+.ark-badge { display: inline-flex; align-items: center; gap: 4px; color: #fff; border: none; }
+.ark-badge.st-pending { background: #6b7280; }
+.ark-badge.st-processing { background: #d97706; }
+.ark-badge.st-active { background: #16a34a; }
+.ark-badge.st-failed { background: #dc2626; }
+
+/* 核心要素预览弹窗：大卡片，内部可滚动；右上角关闭键不压标题区动作
+ * 用 .modal-card.element-preview-card 复合选择器提高特异度，稳压 base 的 .modal-card 宽度 */
+.modal-card.element-preview-card { max-width: 880px; padding: 20px 24px; position: relative; max-height: 88vh; overflow: auto; }
+.element-preview-card .preview-head { padding-right: 30px; }
+.epm-close { position: absolute; top: 12px; right: 14px; z-index: 1; }
+/* 全屏切换键：默认不出现，由需要它的内容自行打开（见 InfiniteMediaCanvas.css） */
+.epm-full-btn { display: none; position: absolute; top: 12px; right: 56px; z-index: 1; }
+
+/* 正文：左目录 + 右正文（两栏各自独立滚动，无分割线）；容器查询以预览区实际宽度为基准 */
+.body-split { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); container-type: inline-size; }
+.chapter-catalog { min-height: 0; display: flex; flex-direction: column; }
+.cat-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px; }
+/* 单列（窄屏 ≤1080px）：整个正文区一个滚动条，正文与要素随之一起滚，列内不各自设滚动条 */
+.body-pane { overflow-y: auto; padding: 22px 26px; min-width: 0; min-height: 0; }
+/* 正文页签内容：宽屏（预览区 >1080px）自适应双栏——正文（≤860px 居中）+ 关联要素，各列独立滚动；
+   窄屏（≤1080px）上下堆叠、要素在下、整体滚动 */
+.body-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+/* body-main 不滚动、作浮动动作条的定位锚；正文在其内的 .body-main-scroll 里滚动 */
+.body-main { width: 100%; max-width: 860px; margin: 0 auto; min-width: 0; position: relative; }
+.body-aside { min-width: 0; width: 100%; max-width: 860px; margin: 0 auto; }
+@container (min-width: 1081px) {
+  /* 双栏：外层容器不滚，正文列与要素列各自独立滚动；要素卡片带在窄侧栏内换行铺排 */
+  .body-pane:has(.body-cols.has-aside) { overflow: hidden; display: flex; flex-direction: column; }
+  .body-cols.has-aside { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 340px; align-items: stretch; }
+  .body-cols.has-aside .body-aside { min-height: 0; max-height: 100%; overflow-y: auto; }
+  /* 正文列：本身不滚（撑满列高，作浮动条锚点），内部 .body-main-scroll 滚动 */
+  .body-cols.has-aside .body-main { min-height: 0; max-height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+  .body-cols.has-aside .body-main-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .body-cols.has-aside .body-aside { max-width: none; margin: 0; }
+  .body-cols.has-aside .body-aside .ce-strip { flex-wrap: wrap; overflow-x: visible; }
+}
+.body-aside .card {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+/* 一行显示：序号方块（参考跳集分页样式）+ 标题（超长省略号，不换行） */
+.cat-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; padding-right: 34px; border-radius: 8px;
+  cursor: pointer; color: var(--text); text-decoration: none; }
+.cat-item:hover { background: var(--bg-soft); }
+.cat-item.active { background: var(--card-hover); }
+.cat-num { flex: none; min-width: 28px; height: 28px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-soft); color: var(--dim); border-radius: 4px; font-size: 14px; line-height: 1; }
+.cat-item.active .cat-num { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.cat-title { min-width: 0; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-item.active .cat-title { color: var(--accent); }
+/* 剧集行操作：默认隐藏三点，鼠标移入或键盘聚焦时显示。 */
+.cat-item-wrap { position: relative; min-width: 0; }
+.cat-item-wrap .cat-item { padding-right: 34px; }
+.cat-more { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--dim); cursor: pointer;
+  opacity: 0; transition: opacity .12s, background .12s, color .12s; }
+.cat-item-wrap:hover .cat-more, .cat-item-wrap:focus-within .cat-more,
+.cat-item-wrap.menu-open .cat-more { opacity: 1; }
+.cat-more:hover, .cat-item-wrap.menu-open .cat-more { background: var(--card-hover); color: var(--text); }
+.cat-menu { position: absolute; z-index: 8; right: 6px; top: calc(100% - 2px); min-width: 116px;
+  padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  box-shadow: 0 8px 24px #0006; }
+.cat-menu-delete { width: 100%; display: flex; align-items: center; gap: 7px; padding: 7px 9px;
+  border: 0; border-radius: 5px; background: transparent; color: var(--danger, #f87171); cursor: pointer;
+  text-align: left; font-size: 12.5px; }
+.cat-menu-delete:hover { background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent); }
+.cat-menu-delete:disabled { opacity: .55; cursor: default; }
+
+/* ── 分卷分组：卷头（可折叠）+ 卷内章节 ── */
+.vol-group { margin-bottom: 4px; }
+.vol-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px;
+  background: var(--bg-soft); color: var(--text); font-size: 13px; font-weight: 600; }
+.vol-toggle { flex: none; width: 18px; border: none; background: none; color: var(--dim);
+  cursor: pointer; font-size: 12px; line-height: 1; padding: 0; }
+.vol-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vol-count { flex: none; color: var(--dim); font-weight: 400; font-size: 12px; }
+.vol-badge { flex: none; font-size: 11px; font-weight: 500; color: var(--accent);
+  background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; }
+.vol-actions { flex: none; margin-left: auto; display: flex; gap: 2px; }
+.vol-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border: none; background: none; color: var(--dim); cursor: pointer; border-radius: 6px; }
+.vol-btn:hover { background: var(--card-hover); color: var(--accent); }
+.vol-chapters { display: flex; flex-direction: column; gap: 2px; padding: 3px 0 3px 14px; }
+.vol-empty { padding: 6px 10px; font-size: 12.5px; color: var(--dim); }
+/* 底部动作条：tab 样式（复用 .seg/.seg-btn，参考正文/视频）——文件夹在前 + 新增按钮撑满。
+   常驻列表底部（不随列表滚动），左右内缩与章节/要素条对齐 */
+.cat-foot, .elem-foot { flex: none; margin: 6px 10px 12px; }
+.cat-foot .cat-main, .elem-foot .cat-main { flex: 1; min-width: 0; }
+/* 文件夹（新建卷 / 新增分类）：图标放大、不显局促；仅图标故收窄横向留白 */
+.cat-foot .cat-folder, .elem-foot .cat-folder { flex: none; padding: 7px 14px; font-size: 18px; color: var(--dim); }
+.cat-foot .cat-folder:hover, .elem-foot .cat-folder:hover { color: var(--accent); }
+.cat-foot .seg-btn[disabled], .elem-foot .seg-btn[disabled] { opacity: .5; cursor: default; }
+@media (max-width: 1100px) { .body-split { grid-template-columns: 240px minmax(0, 1fr); } }
+
+/* 新增章节弹框 */
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: #000a;
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { width: 100%; max-width: 480px; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; }
+.modal-x { background: transparent; border: 0; color: var(--dim); font-size: 15px; cursor: pointer; padding: 2px 6px; }
+.modal-x:hover { color: var(--text); background: transparent; filter: none; }
+.modal-label { font-size: 12px; color: var(--dim); }
+.modal-textarea { width: 100%; min-height: 96px; resize: vertical; padding: 10px 12px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 14px; line-height: 1.6; font-family: inherit; }
+.modal-input, .modal-select { width: 100%; padding: 9px 12px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 14px; font-family: inherit; }
+/* 「或」分隔线：细线中间嵌一个字 */
+.modal-sep { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; color: var(--dim); font-size: 12px; }
+.modal-sep::before, .modal-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.modal-gen { justify-content: center; }
+.modal-gen-hint { font-size: 12px; text-align: center; margin-top: 2px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+
+/* 新增素材弹框（三 tab：自由设定/生成图片/生成视频）：比通用弹框大一号；
+   媒体 tab 内嵌 .imc-shell（无限画布）时放大到近全屏（复合选择器压 base 的 .modal-card 宽度） */
+.modal-card.add-elem-card { max-width: 640px; }
+.modal-card.add-elem-card:has(.imc-shell) { display: flex; flex-direction: column;
+  width: min(1780px, calc(100vw - 36px)); max-width: none;
+  height: min(980px, calc(100vh - 36px)); max-height: none; overflow: hidden; }
+.modal-card.add-elem-card:has(.imc-shell) .imc-shell { flex: 1; min-height: 0; margin-top: 10px; }
+.add-elem-tabs { align-self: flex-start; }

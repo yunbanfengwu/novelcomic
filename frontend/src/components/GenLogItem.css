@@ -1,0 +1,40 @@
+/* 单条生成日志（后台「生成日志」面板 + 任务队列错误弹框共用）。
+   自带全部样式，不依赖 admin.css / Lightbox.css——两处复用视觉一致、任意页面独立可用。 */
+.genlog-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.genlog-item:last-child { border-bottom: 0; }
+
+.genlog-head {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  cursor: pointer; font-size: 13px;
+}
+.genlog-head:hover { color: var(--text); }
+.genlog-modality { font-size: 11px; }
+/* .tag 基类在 base.css；ok/bad 语义色随组件自带，保证非 admin 页（任务队列）也正确着色 */
+.genlog-head .tag.ok { color: #4cc38a; border-color: #4cc38a66; }
+.genlog-head .tag.bad { color: #e5484d; border-color: #e5484d66; }
+
+.genlog-detail {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 8px;
+  border-left: 2px solid var(--border); padding-left: 10px;
+}
+.genlog-label { font-size: 12px; color: var(--dim); letter-spacing: .5px; margin-bottom: 4px; }
+.genlog-text { white-space: pre-wrap; font-size: 13px; line-height: 1.7; word-break: break-word; }
+.genlog-err { color: var(--danger, #e5484d); }
+.genlog-video { max-width: 480px; width: 100%; border-radius: 8px; background: #0a0a0c; }
+.genlog-imgs { display: flex; gap: 6px; flex-wrap: wrap; }
+.genlog-imgs img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; }
+/* 备案角色参考图：真图（后端解析 asset://）+ 左下角标；未解析到则占位框 */
+.genlog-img { position: relative; display: inline-flex; }
+.genlog-img-missing {
+  width: 96px; height: 96px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 11px; line-height: 1.3; color: var(--dim);
+  border: 1px dashed var(--border); background: rgba(127, 127, 127, .06);
+}
+.genlog-badge {
+  position: absolute; left: 4px; bottom: 4px; max-width: 88px;
+  padding: 1px 5px; border-radius: 6px;
+  font-size: 10px; line-height: 1.4; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  background: rgba(20, 120, 70, .88); color: #fff;
+}

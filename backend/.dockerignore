@@ -1,0 +1,13 @@
+# 依赖 / 缓存
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 本地日志 / 密钥（生产由服务器挂载 backend.env）
+logs/
+.env
+
+# 版本控制
+.git/

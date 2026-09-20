@@ -1,0 +1,281 @@
+/* ═══════════════════════════════════════════════════════════
+   base.css —— 设计系统底座：变量 / 复位 / 排版 / 表单 / 按钮 /
+   标签 / 卡片 / 跨组件共享的原子与工具类。首先加载（main.tsx）。
+   组件/页面级样式各自成文件，仅以「同级或更高特异度」覆盖此层。
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+  --bg: #060607;
+  --bg-soft: #131316;
+  --card: #1a1a1d;
+  --panel: var(--card);
+  --card-hover: #1f1f23;
+  --border: #2b2b30;
+  --border-strong: #3d3d4666;
+  --text: #e8e8ea;
+  --dim: #8a8a90;
+  --accent: #4a8cff;
+  --accent-2: #9b6dff;
+  --accent-soft: #4a8cff1f;
+  --gold: #e2b45f;
+  --ok: #4cc38a;
+  --danger: #e5645f;
+  --radius: 12px;
+  --shadow: 0 8px 24px #0006;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.page { width: 100%; max-width: 1720px; margin: 0 auto; padding: 28px 32px 96px; }
+.page.full { max-width: none; }
+
+/* ═══ 全局滚动条：细、浅、悬停才显示 ═══ */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: #ffffff2e transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+*:hover::-webkit-scrollbar-thumb { background: #ffffff24; }
+
+/* ── 页头 / 排版 ─────────────────────────── */
+.page-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.head-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.page-head h1 { margin: 0; }
+
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; margin: 10px 0 16px; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 12px; }
+.section-head h2 { font-size: 18px; margin: 0; }
+
+/* ── 卡片 ─────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin: 0 0 16px;
+}
+
+/* ── 表单控件 ───────────────────────────── */
+textarea, input, select {
+  width: 100%;
+  background: var(--bg-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+textarea:focus, input:focus, select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+textarea { resize: vertical; }
+.inline { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.inline input, .inline select { width: auto; flex: 1; min-width: 120px; }
+
+/* 开关（components/Switch，基于 Radix Switch）：立即生效的二态控件。
+   与复选框分工明确——开关=开/关，复选框=从多项里挑几项。
+   Radix 渲染 <button role="switch"> + thumb，这里只管外观。 */
+.switch {
+  width: 34px; height: 20px; flex: none; padding: 0; margin: 0;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg-soft); position: relative; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.switch[data-state="checked"] { background: var(--accent); border-color: var(--accent); }
+/* 滑块必须 absolute 定位：Radix 的 Root 是 <button>，浏览器给按钮内容做
+   匿名居中布局，普通 block 子元素会被摆到轨道正中，再 translateX 就整个
+   顶出右边框（「圆点跑到外面」）。absolute + 父级 relative 才有确定原点。 */
+.switch-thumb {
+  position: absolute; top: 50%; left: 0;
+  display: block; width: 14px; height: 14px; border-radius: 50%;
+  background: #8a8a90; transform: translate(2px, -50%);
+  transition: transform .15s, background .15s; will-change: transform;
+}
+.switch[data-state="checked"] .switch-thumb { transform: translate(16px, -50%); background: #fff; }
+.switch:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.switch:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 胶囊态 .switch.labeled：圆点与文字都在框内，整块可点，宽度随文字自适应。
+   圆点回到常规流（order 换位），不再 absolute——有文字要让位，固定坐标就撞上了。 */
+.switch.labeled {
+  width: auto; height: 22px; padding: 0 4px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 400; line-height: 1; color: var(--dim);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.switch.labeled .switch-thumb {
+  position: static; top: auto; left: auto; transform: none;
+  width: 12px; height: 12px; flex: none; order: 0;
+}
+.switch.labeled .switch-label { order: 1; padding-right: 3px; }
+/* 开：填充强调色，圆点滑到右边，文字顶到左边 */
+.switch.labeled[data-state="checked"] .switch-thumb { order: 1; transform: none; }
+.switch.labeled[data-state="checked"] .switch-label { order: 0; padding: 0 0 0 3px; }
+.switch.labeled[data-state="checked"] { color: #fff; }
+
+/* ── 按钮 ─────────────────────────────── */
+button {
+  background: linear-gradient(135deg, var(--accent), #7a6dff);
+  color: #fff; border: 0; border-radius: 10px;
+  padding: 9px 18px; font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  transition: filter .15s, transform .1s;
+}
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:active:not(:disabled) { transform: scale(.98); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.ghost {
+  background: transparent; color: var(--dim); border: 1px solid var(--border);
+}
+button.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); filter: none; background: var(--card-hover); }
+button.small { padding: 5px 12px; font-size: 12.5px; border-radius: 8px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ── 引导高亮 .guide-glow ─────────────────────
+   全局「快看这里」修饰类，加在需要引导用户点击的特殊按钮/元素上
+   （如本章正文为空时的「生成正文」按钮）。
+   两层伪类：::before = 沿边旋转的流光描边（conic + mask 镂空成 2px 环）；
+   ::after = 从左到右扫过表面的高光带（被宿主 overflow 裁成圆角）。
+   不改宿主背景/尺寸，任何 border-radius 自动继承。尊重减弱动态偏好。 */
+@property --guide-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.guide-glow { position: relative; overflow: hidden; isolation: isolate; }
+.guide-glow::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px;
+  background: conic-gradient(from var(--guide-angle),
+    var(--accent), var(--accent-2), var(--gold), var(--accent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: guide-spin 2.6s linear infinite; pointer-events: none; z-index: 1;
+}
+.guide-glow::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+  background: linear-gradient(100deg, transparent, #ffffff66 50%, transparent);
+  transform: translateX(-140%); animation: guide-sweep 2.6s ease-in-out infinite;
+  pointer-events: none; z-index: 2;
+}
+@keyframes guide-spin { to { --guide-angle: 360deg; } }
+@keyframes guide-sweep { 0% { transform: translateX(-140%); } 55%, 100% { transform: translateX(320%); } }
+@media (prefers-reduced-motion: reduce) {
+  .guide-glow::before, .guide-glow::after { animation: none; }
+  .guide-glow::after { display: none; }
+}
+
+/* ── 流光边框 .flowing-border ──────────────────
+   与 .guide-glow 并列的另一种「高提醒」修饰类：一道白色高光沿边框反复流过，
+   用于「生成中」这类进行时状态（guide-glow 用于引导点击）。
+   单层 ::before 铺在宿主外扩 2px 处、z-index:-1 沉到宿主背景之下，
+   只有溢出的一圈露出来 —— 故宿主必须①有不透明背景色 ②别 overflow:hidden
+   ③别自建层叠上下文（isolation/transform/opacity）。圆角自动继承。
+   外扩量 --flow-out（宿主有边框时要相应调大，伪元素只从 padding 盒外扩）、
+   流向 --flow-start/--flow-end 可按宿主覆盖。尊重减弱动态偏好。 */
+.flowing-border { position: relative; --flow-out: 2px; --flow-start: 100%; --flow-end: -100%; }
+.flowing-border::before {
+  content: ""; position: absolute; inset: calc(-1 * var(--flow-out)); border-radius: inherit;
+  background: linear-gradient(90deg,
+    transparent 0%, transparent 20%, #ffffff8c 40%, #fff 50%, #ffffff8c 60%,
+    transparent 80%, transparent 100%);
+  background-size: 200% 200%;
+  z-index: -1; pointer-events: none;
+  animation: flowing-light 1.5s linear infinite;
+}
+@keyframes flowing-light {
+  from { background-position: var(--flow-start) 50%; }
+  to   { background-position: var(--flow-end) 50%; }
+}
+@media (prefers-reduced-motion: reduce) { .flowing-border::before { animation: none; } }
+
+/* ── 分段切换（components/Seg，亦作动作组外观复用） ── */
+.seg { display: flex; gap: 2px; background: var(--bg-soft); border-radius: 10px; padding: 3px; }
+.seg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: transparent; color: #ffffff; border: 0; border-radius: 8px;
+  padding: 7px 20px; font-size: 13.5px; white-space: nowrap;
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.seg-btn:hover:not(.active) { color: #8ab4f8; filter: none; background: transparent; }
+.seg-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+/* 禁用态非原生 disabled（保证 hover 可弹 title 提示，如"请先生成大纲"） */
+.seg-btn.disabled { opacity: .38; cursor: not-allowed; }
+.seg-btn.disabled:hover { color: var(--dim); background: transparent; }
+/* 段控内的下拉（如正文生成的目标时长）：跟 .seg-btn 同高同字号，视觉上并排成一体 */
+.seg-select {
+  background: transparent; color: var(--dim); border: 0; border-radius: 8px;
+  padding: 7px 8px; font-size: 13.5px; cursor: pointer; outline: none;
+}
+.seg-select:hover:not(:disabled) { color: #8ab4f8; }
+.seg-select:disabled { opacity: .38; cursor: not-allowed; }
+.seg-select option { background: var(--bg-soft); color: #ffffff; }
+
+/* ── 标签 / 徽章 ────────────────────────── */
+.tag {
+  display: inline-block; background: #2a2a2f; border: 1px solid transparent;
+  border-radius: 999px; padding: 1px 10px; font-size: 12px; color: var(--dim);
+  white-space: nowrap;
+}
+.tag.gold { color: var(--gold); border-color: #e2b45f55; background: #e2b45f14; }
+.tag.accent { color: var(--accent); border-color: #4a8cff55; background: var(--accent-soft); }
+.dim { color: var(--dim); font-size: 13px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+
+/* ── 提示词块 / 折叠详情 ─────────────────── */
+.prompt-box {
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0px 10px; font-size: 12px; color: var(--dim); margin: 6px 0; word-break: break-all;
+}
+.prompt-box.clickable { cursor: pointer; border-color: #4a8cff66; color: var(--text); }
+.prompt-box.clickable:hover { background: #202024; border-color: var(--accent); }
+details summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-top: 8px; user-select: none; }
+
+/* ── 共享工具类 ─────────────────────────── */
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.empty-hint {
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  padding: 28px; text-align: center; color: var(--dim); background: var(--bg-soft);
+}
+/* 可点击放大的图片：鼠标提示 + 轻微悬浮反馈（Lightbox 触发） */
+.zoomable { cursor: zoom-in; transition: filter .15s, transform .15s; }
+.zoomable:hover { filter: brightness(1.06); }
+
+/* ── 共享视觉块（多处复用的图/占位/双帧网格） ── */
+.sb-img { width: 100%; border-radius: 10px; margin-top: 8px; border: 1px solid var(--border); display: block; }
+.sb-placeholder {
+  border: 1px dashed var(--border); border-radius: 10px; padding: 34px 0;
+  text-align: center; color: var(--dim); margin-top: 8px; background: var(--bg-soft);
+}
+.frame-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.frame-pair .sb-img, .frame-pair .sb-placeholder { margin-top: 4px; }
+.frame-pair .sb-placeholder { padding: 22px 0; font-size: 12px; }
+
+/* ── 参考胶囊（生成参考管理，公共图片生成弹框与分镜卡共用）──
+   .ref-chip 点击启停；停用=变灰+去饱和。.elem-chip 为管理态（图可放大），
+   .elem-x 停用/解除绑定按钮，.elem-add 下拉手动添加要素 */
+.ref-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.ref-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--bg-soft);
+  color: var(--text); font-size: 12px; line-height: 1; cursor: pointer; }
+.ref-chip img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; display: block; }
+.ref-chip:hover { border-color: var(--accent); background: var(--bg-soft); filter: none; }
+.ref-chip.off { opacity: .45; }
+.ref-chip.off img { filter: grayscale(1); }
+.elem-chip { cursor: default; }
+.elem-chip img { cursor: zoom-in; }
+.elem-x { border: 0; background: transparent; color: var(--dim); font-size: 11px;
+  line-height: 1; padding: 2px 2px 2px 0; cursor: pointer; }
+.elem-x:hover { color: var(--danger, #e5484d); background: transparent; filter: none; }
+.elem-add { height: 28px; padding: 0 8px; border: 1px dashed var(--border); border-radius: 999px;
+  background: var(--bg-soft); color: var(--dim); font-size: 12px; cursor: pointer; }
+.elem-add:hover { border-color: var(--accent); color: var(--text); }

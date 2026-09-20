@@ -1,0 +1,4 @@
+/* 内联图标：与文字基线对齐、随字号缩放 */
+.icon { display: inline-block; vertical-align: -0.14em; flex-shrink: 0; }
+.icon-spin { animation: icon-spin 0.9s linear infinite; }
+@keyframes icon-spin { to { transform: rotate(360deg); } }

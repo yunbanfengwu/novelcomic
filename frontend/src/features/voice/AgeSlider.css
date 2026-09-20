@@ -1,0 +1,4 @@
+/* ── 年龄滑块（音色库卡片 / 角色卡共用） ── */
+.age-slider { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.age-slider input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--accent, #4a8cff); }
+.age-slider-num { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }

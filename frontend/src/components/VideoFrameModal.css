@@ -1,0 +1,34 @@
+/* 视频抽帧弹窗：源切换/上传 → 画面舞台 → 时间轴 → 播放/慢放/逐帧控件 → 底部抽取按钮。
+   外壳复用 Modal（.modal-card + .rx-modal-wide 宽变体）；抽帧取景需要更大画面，
+   用复合选择器（压过 base 的 .modal-card 与 .rx-modal-wide 宽度，符合分层纪律）单独放宽。 */
+.modal-card.rx-modal-wide:has(.vf-body) { max-width: min(960px, 92vw); }
+.vf-body { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 100%; min-width: 0; }
+
+.vf-sources { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* 项目视频下拉：与 seg-btn 同高的紧凑 select（项目视频可能很多，用下拉而非按钮墙） */
+.vf-project-select { height: 30px; max-width: 220px; padding: 0 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel, #17171a); color: var(--text);
+  font-size: 12.5px; cursor: pointer; }
+
+/* 画面舞台：全宽黑底 + 视频 object-fit 居中留黑边（与主预览 .vt-stage 同款观感）；
+   视频受 max-width/max-height 双约束，按比例缩放不变形、不溢出、不产生横向滚动 */
+.vf-stage { background: #0a0a0c; border-radius: 10px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 100%; max-height: 60vh; }
+.vf-video { max-width: 100%; max-height: 60vh; width: auto; height: auto;
+  object-fit: contain; display: block; cursor: pointer; }
+
+.vf-empty { display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 180px; font-size: 13px; background: #0a0a0c; border-radius: 10px; }
+
+/* 时间轴：细进度条，占满宽度 */
+.vf-timeline { width: 100%; accent-color: var(--accent); cursor: pointer; margin: 0; }
+
+.vf-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vf-rates { display: inline-flex; gap: 2px; }
+.vf-time { margin-left: auto; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.vf-foot { display: flex; align-items: center; gap: 12px; margin-top: 2px;
+  padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.vf-hint { font-size: 12px; flex: 1 1 220px; min-width: 0; }
+.vf-capture { flex-shrink: 0; margin-left: auto; }

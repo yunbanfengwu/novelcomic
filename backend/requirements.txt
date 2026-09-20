@@ -1,0 +1,12 @@
+fastapi>=0.115
+python-multipart>=0.0.9  # FastAPI 文件上传/表单（UploadFile/File/Form）依赖，缺失会启动即崩
+uvicorn[standard]>=0.30
+asyncpg>=0.29
+pydantic>=2.7
+pydantic-settings>=2.3
+httpx>=0.27
+oss2>=2.18
+imageio-ffmpeg>=0.5  # 自带静态 ffmpeg 二进制（无需 apt）：视频抽首/尾帧（services/frames.py）
+pillow>=10  # 宫格故事板合成（services/overview_grid.py）——此前漏加，线上触发即 No module named 'PIL'
+
+pypdf>=5.0  # PDF �����ı���ȡ

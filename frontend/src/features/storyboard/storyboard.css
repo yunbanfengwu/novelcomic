@@ -1,0 +1,662 @@
+/* ═══ 视频工作台（剪辑器式布局：上=预览+辅助材料，下=时间轴；无边框风格）═══ */
+/* 内嵌容器：撑满视频分区剩余高度，自身不滚动（头部动作已 portal 到视频分区头右侧） */
+.vt-board { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* 整页撑满不滚动：card-body 不滚，vt-editor 撑满，上半自适应高度、时间轴固定在底 */
+.card-body.vt-shell { flex: 1; min-height: 0; overflow: hidden; padding: 0 10px;
+  display: flex; flex-direction: column; }
+.vt-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+/* 上半区弹性撑满剩余高度；左侧舞台撑满剩余宽度，右侧辅助区宽度可拖动（--aside-w） */
+.vt-top { position: relative; flex: 1; min-height: 0; display: flex; align-items: stretch; }
+.vt-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.vt-aside { flex: 0 0 var(--aside-w, 400px); min-width: 0; }
+
+/* 舞台 | 详情 之间的可拖动分割线 */
+.vt-resizer {
+  flex: 0 0 12px; align-self: stretch; position: relative; cursor: col-resize; touch-action: none;
+}
+.vt-resizer::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px;
+  border-radius: 2px; background: transparent; transition: background .15s;
+}
+.vt-resizer:hover::after, .vt-resizer.dragging::after { background: var(--accent); }
+/* 舞台撑满左侧上半区（不强求画幅比例），媒体 object-fit:contain 自动上下/左右留黑边不变形 */
+.vt-stage { position: relative; flex: 1 1 auto; min-height: 0; width: 100%;
+  background: #0a0a0c; border-radius: 12px; overflow: hidden; }
+/* 悬浮字幕：由播放时钟驱动，图片/视频通吃（track 只支持 video，自绘 overlay 才能覆盖停留播放） */
+.vt-sub { position: absolute; left: 50%; transform: translateX(-50%); bottom: 56px; z-index: 4;
+  max-width: 86%; text-align: center; pointer-events: none;
+  color: #fff; font-size: 15px; line-height: 1.5; }
+.vt-video { width: 100%; height: 100%; object-fit: contain; background: #0a0a0c; display: block; }
+/* 无视频镜：首/尾帧完整展示（contain）。选中态两者都有则并列平分，播放态各占半镜时长依次铺满
+   （单格 flex:1 自然占满）；左上角帧标签常显（播放/选中皆现） */
+.vt-frames { width: 100%; height: 100%; display: flex; gap: 2px; background: #0a0a0c; }
+/* 尾帧预取位：不占布局、不可见，只为提前进缓存 */
+.vt-frame-pre { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.vt-frame-cell { position: relative; flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; }
+.vt-frame-tag { position: absolute; left: 8px; top: 8px; z-index: 3;
+  padding: 2px 9px; border-radius: 6px; background: #000000a6; backdrop-filter: blur(4px);
+  color: #fff; font-size: 12px; line-height: 1.6; letter-spacing: .5px; pointer-events: none;
+  text-shadow: 0 1px 3px #000c; }
+/* 主预览悬浮控制层：划入才现，居中圆形半透明按钮（视频=播放/暂停，媒体皆有查看放大）。
+   层本身透明且穿透点击，只有按钮拦截；不再点画面任意处放大——放大只走「查看」按钮。 */
+.vt-overlay { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center;
+  justify-content: center; gap: 22px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+/* 悬浮层显隐：划入舞台显示；键盘 Tab 聚焦（:focus-visible）也显示以便可达。
+   注意用 :has(:focus-visible) 而非 :focus-within——后者会因鼠标点完按钮仍留焦点而让控件不消失。 */
+.vt-stage:hover .vt-overlay, .vt-ov:hover .vt-overlay, .vt-overlay:has(:focus-visible) { opacity: 1; }
+/* 每个控制项：圆钮 + 下方白色小字标签 */
+.vt-ctrl-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.vt-ctrl-label { color: #fff; font-size: 12px; line-height: 1; white-space: nowrap;
+  text-shadow: 0 1px 3px #000c; }
+.vt-ctrl { pointer-events: auto; width: 52px; height: 52px; border-radius: 50%; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer;
+  background: #000000a6; backdrop-filter: blur(4px); color: #fff; font-size: 22px;
+  transition: background .15s, transform .1s; }
+.vt-ctrl:hover:not(:disabled) { background: #000000cc; transform: scale(1.06); filter: none; }
+/* 「自动播放」钮的声音下拉（全局偏好）：划入按钮显示菜单，单项反向动作（开→关/关→开） */
+.autoplay-wrap { position: relative; }
+/* 压缩按钮上下 padding、改最小高度+内容居中，把纵向空间让给状态喇叭（图标随 font-size 放大） */
+.autoplay-wrap .seg-btn { padding-top: 3px; padding-bottom: 3px; min-height: 33px; }
+/* 按钮内的声音状态喇叭：开=speaker / 关=mute（静音喇叭） */
+.autoplay-caret { display: inline-flex; align-items: center; margin-left: 4px; font-size: 19px; opacity: .9; }
+.autoplay-menu { display: none; position: absolute; top: 100%; right: 0; z-index: 40;
+  padding: 6px; background: var(--bg-soft); border: 1px solid #ffffff1f; border-radius: 10px;
+  box-shadow: 0 10px 26px #000c; }
+.autoplay-wrap:hover .autoplay-menu, .autoplay-menu:focus-within { display: block; }
+/* 单行菜单项：文字在前、图标在后 */
+.autoplay-item { display: inline-flex; flex-direction: row; align-items: center; gap: 7px;
+  padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--dim);
+  font-size: 13px; cursor: pointer; white-space: nowrap; }
+.autoplay-item:hover { background: var(--card-hover); color: var(--text); filter: none; }
+/* 头部「自动播放」状态开关：关闭态置灰（去主按钮高亮，降透明度） */
+.autoplay-toggle { display: inline-flex; align-items: center; gap: 5px; }
+.autoplay-toggle.off { background: var(--bg-soft); color: var(--dim); opacity: .6; filter: grayscale(1); }
+.autoplay-toggle.off:hover { filter: grayscale(1); }
+
+/* ── Ken Burns：无视频镜「播放整集」时对 1:1 图撑满位移；仅 .kb 挂载时生效，编辑态保持 contain ──
+   只挂 .kb 不带 kb-* 运镜类 = 铺满但不动（尾帧播放态的静置等待）。
+   统一过扫描到 ≥1.08，令任意方向平移都在溢出余量内，不露黑边；动画时长经内联 animationDuration 注入 = 本镜停留秒数 */
+.vt-video.kb { object-fit: cover; will-change: transform;
+  animation-timing-function: ease-in-out; animation-fill-mode: both; animation-iteration-count: 1; }
+.vt-video.kb-static { animation-name: kb-static; }
+.vt-video.kb-push   { animation-name: kb-push; }
+.vt-video.kb-pull   { animation-name: kb-pull; }
+.vt-video.kb-pan-h  { animation-name: kb-pan-h; }
+.vt-video.kb-track  { animation-name: kb-track; animation-timing-function: linear; }
+.vt-video.kb-follow { animation-name: kb-follow; }
+.vt-video.kb-crane  { animation-name: kb-crane; }
+.vt-video.kb-orbit  { animation-name: kb-orbit; }
+/* 手持晃动：不跟本镜时长，固定短周期无限循环（!important 压过内联 animationDuration） */
+.vt-video.kb-shake  { animation-name: kb-shake; animation-timing-function: linear;
+  animation-iteration-count: infinite; animation-duration: .5s !important; }
+@keyframes kb-static { from { transform: scale(1.02); }                    to { transform: scale(1.06); } }
+@keyframes kb-push   { from { transform: scale(1.02); }                    to { transform: scale(1.16); } }
+@keyframes kb-pull   { from { transform: scale(1.16); }                    to { transform: scale(1.02); } }
+@keyframes kb-pan-h  { from { transform: scale(1.12) translateX(-4.5%); }  to { transform: scale(1.12) translateX(4.5%); } }
+@keyframes kb-track  { from { transform: scale(1.14) translateX(-5.5%); }  to { transform: scale(1.14) translateX(5.5%); } }
+@keyframes kb-follow { from { transform: scale(1.06) translate(-2%, 1%); } to { transform: scale(1.14) translate(2%, -1%); } }
+@keyframes kb-crane  { from { transform: scale(1.12) translateY(5%); }     to { transform: scale(1.12) translateY(-5%); } }
+@keyframes kb-orbit  { from { transform: scale(1.10) translateX(-3%) rotate(-1deg); } to { transform: scale(1.14) translateX(3%) rotate(1deg); } }
+@keyframes kb-shake {
+  0%   { transform: scale(1.08) translate(0, 0)        rotate(0deg); }
+  20%  { transform: scale(1.08) translate(-0.6%, 0.4%) rotate(-0.4deg); }
+  40%  { transform: scale(1.08) translate(0.5%, -0.5%) rotate(0.3deg); }
+  60%  { transform: scale(1.08) translate(-0.4%, -0.3%) rotate(-0.3deg); }
+  80%  { transform: scale(1.08) translate(0.5%, 0.4%)  rotate(0.4deg); }
+  100% { transform: scale(1.08) translate(0, 0)        rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vt-video.kb { animation: none !important; transform: scale(1.02); }
+}
+.vt-empty { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 34px; background: #101012; }
+/* 空态常驻控制组：标题 + 三钮（生成首图→生成视频→顺序播放），圆钮复用 .vt-ctrl；箭头/分隔线与 52px 圆钮对齐 */
+.vt-empty-title { color: #fff; font-size: 15px; letter-spacing: .5px; }
+.vt-empty-ctrls { display: flex; align-items: flex-start; gap: 18px; }
+.vt-empty-arrow { color: #ffffff59; font-size: 20px; line-height: 52px; user-select: none; }
+.vt-empty-divider { width: 1px; height: 52px; background: #ffffff26; }
+.vt-empty-timer-num { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 600; color: #ffffff; }
+.vt-empty-script { 
+     max-width: 90%;
+     text-align: center; 
+     color: #ffffff; 
+     font-size: 18px; 
+     line-height: 2; 
+     display: -webkit-box; 
+     -webkit-line-clamp: 3; 
+     -webkit-box-orient: vertical; 
+     overflow: hidden; 
+ }
+.vt-aside { border-radius: 12px; background: #1d1d20;
+  padding: 0 16px 12px; height: 100%; min-height: 0; overflow-y: auto; min-width: 0; }
+/* 窄屏（移动端）：辅助区收窄内边距 */
+body.is-mobile .vt-aside { padding: 0 8px 8px; }
+/* 辅助预览区所有图片限高 280px；方形图块（前置条件/首尾帧）同时限宽——
+   它们靠 aspect-ratio 1/1 + width:100% 撑开，只限高会被压成扁矩形 */
+.vt-aside img { max-height: 280px; }
+.vt-aside .pre-tile,
+.vt-aside .vc-frames .ref-chip.kf-chip { max-width: 280px; }
+/* 详情头（镜号+参数标签+质检章）sticky 钉顶不随滚动：不透明底遮住滑过的内容，底部软阴影示层次 */
+.vt-aside-head { 
+     position: sticky; 
+     top: 0; 
+     z-index: 2; 
+     background: #1d1d20; 
+     padding: 8px 0 8px 12px; 
+     box-shadow: 0 8px 10px -8px #000c; 
+     display: flex; 
+     align-items: center; 
+     gap: 6px; 
+     flex-wrap: wrap; 
+     margin-bottom: 6px; 
+     margin: 0 -10px; 
+ }
+.vt-aside-head > b { white-space: nowrap; }
+/* 时长/场景组标签已并入对应卡片的标题行（分镜脚本 / 场景站位光影锚定），不再单列一行 */
+.vt-redesign-btn { margin-left: auto; flex-shrink: 0; }
+/* 卡片标题行里的参数标签：与标题基线对齐、字号收一档，不抢标题 */
+.inspector-section-title .tag, .pre-block .aux-title .tag { padding: 0 8px; font-size: 11px; }
+/* 辅助预览顶部结构化信息：分镜脚本逐 cut 展示，前置条件集中展示场景与参考帧。 */
+.inspector-section { margin-top: 12px; padding: 12px;
+  border-radius: 10px; background: #18181b; }
+.inspector-section-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  color: var(--text); font-size: 13px; font-weight: 700; }
+/* 本镜故事概述：置于 cut 列表之上，各生成卡不再重复该段 */
+.cut-script-summary { margin: -2px 0 9px; color: var(--text); font-size: 12px; line-height: 1.6; }
+/* 时间轴：走在「时间列」与「镜头语言列」中间（x=80px，即 88px 时间列内让出的 16px 沟槽中心），
+   一条细轨 + 每切一个小圆点，同时充当两列的分隔线；切与切之间贴紧（间距 2px）。
+   z-index 1/2：行是 position:relative，DOM 里在轨之后——不抬层轨会被行底色盖住 */
+.cut-script-list { position: relative; display: grid; gap: 2px; }
+.cut-script-list::before { content: ''; position: absolute; left: 80px; top: 10px; bottom: 10px;
+  width: 1px; z-index: 1; background: #ffffff1f; }
+/* 三列：时间（含轨沟槽）｜ 镜头语言（景别/运镜/切入方式）｜ 内容（主体+动作、台词） */
+/* 不能用 overflow:hidden——会把压在行上的圆点裁掉；列内容自身不越界 */
+.cut-script-row { position: relative; display: grid; grid-template-columns: 88px 78px minmax(0, 1fr);
+  border: 1px solid #ffffff10; border-radius: 8px; background: #101012; }
+/* 轨上小圆点：与轨心（行内 x=80，行有 1px 边框故 79）对齐，压在轨线之上 */
+.cut-script-row::before { content: ''; position: absolute; left: 77px; top: 14px; z-index: 2;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.cut-script-time { display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 9px 25px 9px 9px; color: var(--accent); font-size: 11px; }
+.cut-script-time b { color: var(--text); font-size: 12px; }
+.cut-script-lens { display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  justify-content: center; padding: 8px; border-right: 1px solid #ffffff10; }
+.cut-tag { padding: 1px 6px; border-radius: 4px; background: var(--accent-soft);
+  color: var(--accent); font-size: 10px; white-space: nowrap; }
+/* 切入方式是推导值（首切起幅/承接，其余硬切），弱化区别于拆镜产出的景别与运镜 */
+.cut-tag-join { background: #ffffff10; color: var(--dim); }
+.cut-script-body { min-width: 0; padding: 8px 10px; color: var(--dim); font-size: 12px; line-height: 1.55; }
+/* 画面（主体+动作）：靠左强调条 + 蓝色主体，与台词行区分 */
+.cut-script-act { padding: 3px 8px; border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0; background: #ffffff0a; }
+.cut-script-act > b { color: var(--accent); font-weight: 600; }
+.inspector-empty { padding: 10px; border-radius: 8px; background: #101012;
+  color: var(--dim); font-size: 12px; }
+/* 切内台词：「角色：台词」平铺一行，是这一切最该先读到的东西 */
+.cut-line { margin-top: 5px; color: var(--text); }
+.cut-line-who { color: var(--text); }
+/* 未落到切的台词 / 站位：跟在 cut 列表之后，同属本镜剧本 */
+.cut-script-notes:not(:empty) { display: grid; gap: 5px; margin-top: 9px; }
+/* 前置条件：不做卡片——「标题一行 + 图块一行」，与本镜参考同形。
+   图块尺寸对齐首尾帧行：一行两格、方形自适应（宽度随容器，不写死 px） */
+.pre-block .aux-title { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+/* 标题行右侧入口（场景=进画布 / 分镜图=整章重出）：压 base 的 .small 尺寸，贴右 */
+.pre-canvas-btn { margin-left: auto; flex-shrink: 0; padding: 3px 10px; font-size: 12px; }
+.pre-block .aux-title + .pre-grid { margin-bottom: 10px; }
+.pre-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  align-items: start; }
+.pre-tile { position: relative; width: 100%; padding: 0; border: 0; background: none;
+  color: var(--dim); cursor: pointer; }
+/* 胶囊压在图左上角（与主预览 .vt-frame-tag 同款）：标明本格是场景图/关键帧 */
+.pre-tile-tag { position: absolute; left: 6px; top: 6px; z-index: 2; max-width: calc(100% - 12px);
+  padding: 1px 8px; border-radius: 999px; background: #000000a6; backdrop-filter: blur(4px);
+  color: #fff; font-size: 11px; line-height: 1.6; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; pointer-events: none; text-shadow: 0 1px 3px #000c; }
+.pre-tile:disabled { cursor: default; opacity: 1; }
+.pre-tile img, .pre-tile > .icon { display: block; box-sizing: border-box; width: 100%; height: auto;
+  aspect-ratio: 1 / 1; border: 1px dashed #ffffff00; border-radius: 8px; background: #0a0a0c;
+  object-fit: cover; }
+.pre-tile > .icon { padding: 26%; }
+/* 1px 描边只透明不删除，删掉会让 hover 描边时尺寸跳动 */
+.pre-tile.ready img { border-style: solid; border-color: transparent; }
+.pre-tile:hover:not(:disabled) img, .pre-tile:hover:not(:disabled) > .icon {
+  border-color: var(--accent); filter: none; }
+.pre-tile:hover:not(:disabled) { color: var(--text); }
+/* 图块右侧说明：名称 + 就绪状态 */
+.pre-note { display: grid; gap: 4px; align-content: start; color: var(--dim); font-size: 11px;
+  line-height: 1.5; }
+.pre-note b { color: var(--text); font-size: 12px; }
+/* 解除关联后的回退入口：「关联首帧」小钮，贴左不撑满 */
+.pre-relink { justify-self: start; margin-top: 2px; padding: 2px 8px; font-size: 11px; }
+/* 分镜图「已关联首/尾帧」紧凑行：小缩略图 + 一行说明 + 右端 ✕ 解除（不再占一整格大图） */
+.pre-link { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 8px;
+  border-radius: 10px; background: #202024; }
+.pre-link-thumb { flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px;
+  background: #0a0a0c; color: var(--dim); cursor: pointer; overflow: hidden; }
+.pre-link-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pre-link-thumb:hover { outline: 1px solid var(--accent); filter: none; }
+.pre-link-text { flex: 1; min-width: 0; color: var(--text); font-size: 12px; }
+.pre-link-x { flex: 0 0 auto; width: 26px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  color: var(--dim); font-size: 13px; cursor: pointer; }
+.pre-link-x:hover { background: #ffffff14; color: var(--danger); filter: none; }
+/* 卡间距只给辅助区的直接子块（前置条件/首尾帧/首帧/尾帧）：卡与卡之间留 18px，连线正是按这段
+   间距画的。嵌在分镜脚本卡内的本镜参考不是直接子块，因此不吃这段留白（卡中卡不再多一截空白）。 */
+.vt-aside > .aux-block { padding-top: 8px; margin-top: 10px; }
+
+/* ── 总览辅助区的章级总览块（分镜故事板总览 / 场景锚定总览）── */
+/* 标题行与前置条件区同形：图标+标题+计数，右侧「画布」入口贴右（.pre-canvas-btn 复用） */
+.ov-title { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.ov-title .tag { padding: 0 8px; font-size: 11px; }
+/* 一行 3 格（窄屏 2 格）：图块 16:9 贴合宫格/场景图横幅比例，下方两行说明 */
+.ov-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ov-tile { display: grid; gap: 4px; align-content: start; width: 100%; padding: 0; border: 0;
+  background: none; color: var(--dim); font-size: 11px; line-height: 1.4; text-align: left;
+  cursor: pointer; }
+.ov-tile img, .ov-tile > .icon { display: block; box-sizing: border-box; width: 100%; height: auto;
+  aspect-ratio: 16 / 9; border: 1px dashed #ffffff2b; border-radius: 8px; background: #0a0a0c;
+  object-fit: cover; }
+.ov-tile > .icon { padding: 14%; }
+.ov-tile.ready img { border-style: solid; border-color: transparent; }
+.ov-tile b { color: var(--text); font-size: 12px; font-weight: 600; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.ov-tile:hover:not(:disabled) { color: var(--text); }
+.ov-tile:hover:not(:disabled) img, .ov-tile:hover:not(:disabled) > .icon {
+  border-color: var(--accent); }
+.ov-tile:disabled { cursor: default; opacity: 1; }
+.ov-empty { font-size: 11px; }
+@media (max-width: 1100px) { .ov-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ── 本章正文卡（未拆镜时的辅助区内容）──────────────────
+   正文自带滚动条：长章不把辅助区撑成一条很长的滚动 */
+.cb-summary { margin: 0 0 8px; color: var(--dim); font-size: 12px; line-height: 1.7; }
+.cb-text { max-height: 58vh; overflow-y: auto; padding-right: 6px;
+  white-space: pre-wrap; color: var(--text); font-size: 13px; line-height: 1.9; }
+
+/* 辅助区末尾动作组：与「正文/视频」同款 tab 组（.seg）——前插 / 删除 / 后插 */
+.vt-aside-ops { display: flex; justify-content: center; padding: 14px 0 4px; }
+.vt-aside-ops .seg-btn { padding: 6px 14px; font-size: 12.5px; }
+/* 删除按钮：默认随组，悬停转危险色 */
+.seg-btn-danger:hover:not(.active) { color: var(--danger); background: transparent; }
+.aux-title { font-size: 12px; color: var(--dim); margin-bottom: 4px; letter-spacing: .5px; }
+/* 提示词卡片头：标题 + 质检章 + 右侧「重生成」 */
+.prompt-card-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.prompt-card-head .small { margin-left: auto; flex-shrink: 0; padding: 3px 10px; font-size: 12px; }
+/* 关联要素 chips（.ref-chips/.ref-chip/.elem-* 基础样式在 base.css 共享原子；本文件只放卡内覆盖） */
+.aux-block .prompt-box { margin: 0; border: none; background: #0a0a0c00; }
+/* 辅助区卡内关联要素不用胶囊：86 宽高图（或图标占位）+ 下方标题竖排（首帧/视频卡通用；弹框管理卡不受影响） */
+.aux-block .ref-chip { flex-direction: column; align-items: center; gap: 4px;
+  width: 86px; padding: 0; border: none; background: none; border-radius: 8px;
+  text-align: center; line-height: 1.3; }
+.aux-block .ref-chip img { width: 86px; height: 86px; border-radius: 8px; }
+.aux-block .ref-chip > .icon { width: 86px; height: 86px; padding: 26px; box-sizing: border-box;
+  border: 1px solid var(--bg-soft); border-radius: 8px; background: var(--bg-soft); }
+.aux-block .ref-chip:hover img { outline: 1px solid var(--accent); }
+/* 本镜参考容器（要素/音频/手选 + ＋添加）：不再套底色圆角框——它已嵌在分镜脚本卡内，
+   卡中卡两层底色反而把参考图挤小、层级也乱。只留 chips 自身的图块。 */
+/* ＋添加：与参考同形态的虚线方块入口（打开视频编辑弹框的资产面板） */
+.aux-block .ref-chip.vc-add { color: var(--dim); }
+.aux-block .ref-chip.vc-add .vc-add-box { width: 86px; height: 86px; display: flex;
+  align-items: center; justify-content: center; font-size: 24px; border-radius: 8px;
+  border: 1px dashed #ffffff2b; background: #0a0a0c; box-sizing: border-box; }
+.aux-block .ref-chip.vc-add:hover { color: var(--text); }
+.aux-block .ref-chip.vc-add:hover .vc-add-box { border-color: var(--accent); }
+/* 视频卡首尾帧参考：比其余要素大一号更醒目；未出图=虚线空占位（点击直达对应生成弹框） */
+.aux-block .ref-chip.kf-chip { /* width: 172px; */ }
+.aux-block .ref-chip.kf-chip img, .aux-block .ref-chip.kf-chip > .icon { /* width: 172px; height: 172px; */ }
+.aux-block .ref-chip.kf-chip > .icon { padding: 52px; }
+.aux-block .ref-chip.kf-empty > .icon { border-style: dashed; border-color: #0a0a0c; background: #0a0a0c; color: var(--dim); }
+.aux-block .ref-chip.kf-empty:hover > .icon { border-color: var(--accent); color: var(--text); }
+/* 要素占位（设定图未生成）：同款虚线空占位——点击进要素预览可直接生成设定图 */
+.aux-block .ref-chip.ref-ph { color: var(--dim); }
+.aux-block .ref-chip.ref-ph > .icon { border: 1px dashed #ffffff2b; background: #0a0a0c; }
+.aux-block .ref-chip.ref-ph:hover { color: var(--text); }
+.aux-block .ref-chip.ref-ph:hover > .icon { border-color: var(--accent); }
+/* 音频声线卡：有小样=可试听（右下播放角标）；未生成=虚线态（点击按角色特征捏音色生成） */
+.aux-block .ref-chip.audio-chip { position: relative; }
+.aux-block .ref-chip.audio-off { color: var(--dim); }
+.aux-block .ref-chip.audio-off > .icon { border: 1px dashed #ffffff2b; background: #0a0a0c; }
+.aux-block .ref-chip.audio-off:hover { color: var(--text); }
+.aux-block .ref-chip.audio-off:hover > .icon { border-color: var(--accent); }
+.aux-block .ref-chip .audio-play { position: absolute; right: 6px; top: 60px;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; }
+.aux-block .ref-chip.audio-chip:hover .audio-play { background: var(--accent); filter: brightness(1.15); }
+/* 首尾帧行：首帧|尾帧两格等宽并排撑满卡宽（尾帧可空占位），图按容器宽自适应 */
+.film-cell .vc-frames-title { margin: 2px 0 -2px; }
+.aux-block .ref-chips.vc-frames { flex-wrap: nowrap; gap: 12px; }
+.aux-block .vc-frames .ref-chip.kf-chip { flex: 1 1 0; width: auto; min-width: 0; }
+.aux-block .vc-frames .ref-chip.kf-chip img,
+.aux-block .vc-frames .ref-chip.kf-chip > .icon { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+/* 首/尾帧「固定」勾选：帧图下方一行 checkbox+文字，独立可点（stopPropagation 不触发看图/生成） */
+.aux-block .ref-chip.kf-chip .kf-lock { display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer; font-size: 12px; color: var(--text); user-select: none; white-space: nowrap; }
+/* 复位 base 的 `input{width:100%}`：否则 checkbox 盒被拉宽，把文字挤到右边显得间距很大 */
+.aux-block .ref-chip.kf-chip .kf-lock input { cursor: pointer; accent-color: var(--accent); margin: 0; width: auto; flex: none; }
+/* 未固定（off）：不整体压暗（否则勾选框也被压淡难点回），仅让帧图去色示意「不锁帧」 */
+.aux-block .ref-chip.kf-chip.off { opacity: 1; }
+.aux-block .ref-chip.kf-chip.off img { filter: grayscale(1) brightness(.82); }
+/* 连线（横向对齐首尾帧行格位中心：首帧=左半格 ≈25%、尾帧=右半格 ≈75%；
+   纵向 24px 跨过卡间距 .vt-aside > .aux-block 的 margin 10 + padding 8）：
+   - 首帧：首尾帧块 ↔ 首帧卡一段线（kf-cell 上方），两端各一个圆点；
+   - 尾帧：分两段拼成"从首尾帧块穿过首帧卡连到尾帧卡"——段1挂首尾帧块（vc-cell）从下沿垂出，
+     起点（首尾帧行下沿）一个圆点、末端无点；段2挂尾帧卡（lkf-cell）上方，
+     顶端无点、落点（尾帧卡顶边）一个圆点；中间被首帧卡卡面自然遮断 */
+.kf-cell::before, .lkf-cell::before { content: ''; position: absolute; bottom: 100%; width: 2px;
+  height: 24px; background: var(--accent); opacity: .5; }
+.kf-cell::before { left: calc(25% + 4px); }
+/* 尾帧段2缩短到卡间距（18px）以内：起点须在首帧卡下方，不得压上首帧卡卡面 */
+.lkf-cell::before { left: calc(75% - 4px); height: 16px; }
+/* 首帧线两端圆点：一个元素画上端点，box-shadow 平移 24px 复制出下端点（骑在卡顶边上） */
+.kf-cell::after { content: ''; position: absolute; left: calc(25% + 2px);
+  bottom: calc(100% + 21px); width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 24px var(--accent); }
+/* 尾帧段2落点圆点：只在尾帧卡顶边一个 */
+.lkf-cell::after { content: ''; position: absolute; left: calc(75% - 6px);
+  bottom: calc(100% - 3px); width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); }
+/* 尾帧段1：挂首尾帧块向下垂，起点圆点骑在其下沿；同样限高 16px 不压到下方首帧卡。
+   :has(.vc-frames) 限定只有「带首尾帧行」的那块画线——嵌在分镜脚本里的本镜参考同样是
+   vc-cell，但它下面隔着前置条件区，不能垂线头出来。 */
+.vc-cell:has(.vc-frames)::before { content: ''; position: absolute; left: calc(75% - 4px); top: 100%;
+  width: 2px; height: 16px; background: var(--accent); opacity: .5; }
+.vc-cell:has(.vc-frames)::after { content: ''; position: absolute; left: calc(75% - 6px);
+  top: calc(100% - 3px); width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* 卡片标题栏右侧按钮组（查看/生成）：压 base 的 .prompt-card-head .small { margin-left:auto } */
+.card-btns { margin-left: auto; display: inline-flex; gap: 6px; flex-shrink: 0; }
+/* 详情头动作组：与「正文/视频」同款 tab 组（.seg），靠右、按钮内边距收紧适配头部行高 */
+.card-actions { margin-left: auto; flex-shrink: 0; align-items: center; }
+.card-actions .seg-btn { padding: 6px 14px; font-size: 12.5px; }
+.prompt-card-head .card-btns .small { margin-left: 0; }
+/* 卡头右侧 tab 组（复用 base 的 .seg/.seg-btn，与「正文/视频」同款）：左=质检评分（.review-plain
+   仅上色无胶囊），右=「编辑」常高亮（.seg-btn.active）。靠右、收窄按钮内边距以适配卡头行高 */
+.card-edit-seg { margin-left: auto; flex-shrink: 0; align-items: center; }
+.card-edit-seg .seg-btn { padding: 4px 14px; font-size: 12.5px; }
+.card-edit-seg .seg-btn:disabled { opacity: .38; cursor: not-allowed; }
+/* 质检评分（无胶囊）：仅按合格/请注意/不合格上色，随图标+分值 */
+.review-plain { display: inline-flex; align-items: center; gap: 3px; padding: 0 8px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.review-plain.accent { color: var(--accent); }
+.review-plain.gold { color: var(--gold); }
+.review-plain.bad { color: var(--danger); }
+.tag.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.flash-prompt { margin-top: 10px; border: 1px solid var(--border); border-radius: 9px;
+  background: #131316; overflow: hidden; }
+.flash-prompt.pending { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.flash-prompt-head { display: flex; align-items: center; gap: 7px; padding: 9px 10px;
+  border-bottom: 1px solid var(--border); font-size: 12px; }
+.flash-prompt-head > .tag:first-of-type { margin-left: auto; }
+.flash-segments { display: flex; flex-direction: column; gap: 1px; max-height: 360px; overflow-y: auto;
+  background: var(--border); }
+.flash-segment { padding: 8px 10px; background: #17171a; }
+.flash-segment-head { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+.flash-time { color: var(--accent); font-variant-numeric: tabular-nums; min-width: 72px; }
+.flash-story { margin-top: 5px; color: var(--text); font-size: 12px; line-height: 1.55; }
+.flash-story > span { color: var(--dim); margin-right: 7px; }
+.flash-meta { margin-top: 3px; color: var(--dim); font-size: 10.5px; line-height: 1.4; }
+.flash-full-prompt { padding: 8px 10px; font-size: 11px; color: var(--dim); }
+.flash-full-prompt summary { cursor: pointer; color: var(--text); }
+.flash-full-prompt pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word;
+  max-height: 260px; overflow-y: auto; font: inherit; line-height: 1.55; }
+.flash-groups { display: grid; gap: 8px; padding: 8px; background: #0e0e10; }
+.flash-group { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: #1a1a1d; }
+.flash-group-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 9px;
+  border-bottom: 1px solid var(--border); font-size: 11px; }
+.flash-group-head b { margin-right: auto; color: var(--text); }
+.flash-group-timeline { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 9px 0;
+  color: var(--dim); font-size: 10.5px; }
+.flash-group-video, .flash-master-links a { color: var(--accent); text-decoration: none; }
+.flash-group-video { display: block; padding: 6px 9px; font-size: 11px; }
+.flash-group-video:hover, .flash-master-links a:hover { text-decoration: underline; }
+.flash-continuity { display: grid; gap: 4px; padding: 6px 9px; color: var(--dim);
+  border-top: 1px solid #ffffff0d; font-size: 10.5px; line-height: 1.45; }
+.flash-continuity span { margin-right: 6px; color: var(--accent); }
+.flash-group .flash-segments { max-height: 260px; border-top: 1px solid var(--border); }
+.flash-master-label { margin: 2px 0 5px; color: var(--dim); font-size: 11px; }
+.flash-master-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;
+  margin-top: 6px; font-size: 11px; }
+.flash-extract-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.flash-extract-actions > span { color: var(--dim); font-size: 10.5px; line-height: 1.35; }
+.flash-frame-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 7px; margin-top: 8px; }
+.flash-frame { min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--border);
+  border-radius: 7px; background: #0a0a0c; color: var(--dim); cursor: zoom-in; text-align: left; }
+.flash-frame:hover { border-color: var(--accent); filter: none; }
+.flash-frame img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #050506; }
+.flash-frame span { display: block; overflow: hidden; padding: 4px 6px; font-size: 10px;
+  line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.flash-history { margin-top: 7px; color: var(--dim); font-size: 11px; }
+.flash-history > summary { cursor: pointer; }
+.flash-history > div { display: grid; gap: 4px; margin-top: 6px; }
+.flash-history a { color: var(--accent); text-decoration: none; }
+.flash-history a:hover { text-decoration: underline; }
+.flash-history-item { padding: 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: #131316; }
+.flash-history-item .flash-extract-actions { align-items: flex-start; flex-direction: column; gap: 5px; }
+.preview-timeline-entry {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.preview-timeline-entry { margin-top: 8px; padding: 9px; border: 1px solid var(--border);
+  border-radius: 8px; background: #131316; }
+.preview-timeline-entry > div:first-child {
+  display: grid; gap: 3px; min-width: 0;
+}
+.preview-timeline-entry span {
+  color: var(--dim); font-size: 10px; line-height: 1.35;
+}
+.preview-timeline-launcher { border-color: #4a8cff4d; background: #0e0e10; }
+.preview-timeline-launcher > .btns { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+/* 首帧/视频卡共用：整卡一张深色圆角卡，竖排三段——标题+按钮（上）、提示词（中）、素材（下），无齿孔装饰 */
+.film-cell { position: relative; background: #26262b; border-radius: 12px;
+  margin: 0 -4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.film-cell .aux-title { margin-bottom: 0; }
+/* 视频区：不再是卡片——去底色与左右内边距，只留标题行 + 参考容器（连线锚点仍靠 vc-cell） */
+.film-cell.vc-flat { background: none; margin: 0; padding: 4px 0 0; }
+/* 参考素材沉到卡底，与提示词留白 */
+.film-cell > .ref-chips { margin: 2px 0 0; }
+/* 中间提示词区 */
+.film-mid { position: relative; padding: 2px 0; }
+/* 「更多/收起」不独立占行：黑底小胶囊悬浮在提示词右下角 */
+.film-mid .linklike { position: absolute; right: 4px; bottom: 2px; margin: 0;
+  background: #26262b; backdrop-filter: blur(2px); padding: 2px 10px 2px 20px; border-radius: 6px; }
+.film-mid .linklike:hover { background: #26262b; text-decoration: none; }
+/* 首帧/尾帧卡页签行：「取前镜尾帧/取后镜首帧」（抽取）与「新生成」两页切换 */
+.gen-tabs { display: flex; gap: 12px; font-size: 12px; border-bottom: 1px solid #2e2e34; }
+.gen-tab { color: var(--dim); cursor: pointer; padding: 1px 2px 4px;
+  margin-bottom: -1px; border-bottom: 2px solid transparent; }
+.gen-tab:hover { color: var(--text); }
+.gen-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* 「取邻镜帧」页签内容：说明 → 抽取按钮 → 抽取结果图（kf-chip 同款方图胶囊） */
+.nf-pane { display: flex; flex-direction: column; gap: 8px; padding: 2px 0; align-items: flex-start; }
+.nf-hint { font-size: 12px; line-height: 1.6; }
+/* 提示词编辑弹框：已迁公共图片生成弹框（components/ImageGenModal，.ig-* 样式随组件走）；
+   版本历史面板样式迁至 components/PromptHistory.css（随组件走） */
+.aux-refs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.aux-refs img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; cursor: zoom-in; }
+/* 时间轴外层：横向两栏——左=故事板首卡（常驻不滚动），右=vt-timeline（flex:1 内部横滚） */
+.vt-timeline-wrap { flex: 0 0 auto; display: flex; background: #101012; }
+.vt-timeline { flex: 1 1 auto; min-width: 0; position: relative;
+  display: flex; gap: 0; overflow-x: auto; padding: 0; border-radius: 0; background: #101012; }
+.tl-card { flex: 0 0 172px; width: 172px; border: 1px solid transparent; border-radius: 0;
+  background: #131316; cursor: pointer; overflow: hidden; }
+.tl-card:hover { border-color: #ffffff2a; }
+.tl-card.active { border-color: var(--accent); }
+.tl-thumb { position: relative; height: 92px; background: #0a0a0c; }
+.tl-thumb img, .tl-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tl-play { position: absolute; right: 6px; bottom: 6px; font-size: 12px; background: #000a;
+  border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.tl-text { height: 92px; padding: 8px; font-size: 11px; color: var(--dim); overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+.tl-foot { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; }
+/* 总览首卡底栏：仅「总览」标签，居中显示 */
+.tl-ov .tl-foot { justify-content: center; }
+.tl-badge { position: absolute; left: 6px; top: 6px; font-size: 11px; background: #000a; color: #fff;
+  padding: 2px 6px; border-radius: 6px; pointer-events: none; }
+/* 首帧进度计数：钉在缩略图右下角（不再占时间轴底栏） */
+.tl-quad-count { position: absolute; right: 6px; bottom: 6px; font-size: 11px; background: #000a; color: #fff;
+  padding: 2px 6px; border-radius: 6px; pointer-events: none; }
+/* 时间轴场景组竖条（场景分组 2026-07-16 二版）：组首镜前的分节竖条（竖排场景名+场景图状态点），
+   点击选中场景组→主区换场景图大图、右侧换场景设定面板 */
+/* 描边 1px 常驻透明（同 .tl-card 的做法）：选中才上色，竖条不会因为多出描边而变宽挤动邻条 */
+.tl-strip { flex: 0 0 auto; min-width: 30px; max-width: 120px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; border: 1px solid transparent; cursor: pointer;
+  overflow: hidden; position: relative; }
+/* 悬停不动背景（背景只表达选中态）：只把小图淡出，露出压在图上的竖排场景名 */
+.tl-strip:hover .tl-strip-sheet { opacity: 0; }
+.tl-strip.active { background: #000000; border-color: var(--accent); }
+/* 已有场景图：小图贴边钉在顶部（竖条自身不留内边距，宽度由图撑开）；
+   名字层脱流绝对定位、在整条竖条内居中盖住图，不被图挤矮 */
+.tl-strip-sheet { flex: 0 0 auto; height: 50px; width: auto; max-width: 100%;
+  object-fit: cover; display: block; transition: opacity .15s; }
+.tl-strip-body { flex: 1 1 auto; min-height: 0; align-self: stretch; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 6px 0; overflow: hidden; position: absolute; width: 100%; }
+.tl-strip-name { flex: 0 1 auto; min-height: 0; writing-mode: vertical-rl; letter-spacing: 2px;
+  font-size: 12px; color: var(--text); max-height: 100px; overflow: hidden; }
+.tl-strip-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #ffffff2e; }
+/* 场景设定面板：空间站位图大图 + 可点的组内镜标签 */
+/* 场景详情头：单行不换行——否则长场景名会把右侧动作组挤到第二行；名字自身省略号截断，
+   全名走 title。压 .vt-aside-head 的 flex-wrap 与 > b 的 white-space（同级特异度更高） */
+.vt-aside-head.sg-head { flex-wrap: nowrap; }
+.vt-aside-head.sg-head > b.sg-head-name {
+  min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 不强制拉满宽度（按原始尺寸显示）；max-width 兜底，防止大图撑破右侧辅助栏 */
+.sg-sheet { max-width: 100%; border-radius: 8px; display: block; margin: 4px 0 6px; }
+/* 锚定图块标题行：重生成/画布入口贴着图放，看到图不合理即可就地重出（不必滚回详情头） */
+.sg-sheet-title .card-actions { margin-left: auto; flex: 0 0 auto; }
+/* 图（或占位图）与两个入口合成一格：入口压在图面下缘居中 */
+.sg-sheet-tile { position: relative; margin: 4px 0 6px; }
+.sg-sheet-tile .sg-sheet { margin: 0; }
+/* 未生成占位图：与成图同宽的虚线框，中央大图标——两个入口常显压在其上 */
+.sg-sheet-ph { display: flex; align-items: center; justify-content: center; width: 100%;
+  aspect-ratio: 16 / 9; border: 1px dashed #ffffff2b; border-radius: 8px; background: #0a0a0c;
+  color: var(--dim); font-size: 40px; }
+.sg-sheet-tile:hover .sg-sheet-ph { border-color: var(--accent); }
+.sg-sheet-acts { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  z-index: 2; }
+/* 已出图：入口默认隐去不挡画面，划入图面（或键盘聚焦）才浮现 */
+.sg-sheet-tile.ready .sg-sheet-acts { opacity: 0; transition: opacity .15s; }
+.sg-sheet-tile.ready:hover .sg-sheet-acts,
+.sg-sheet-tile.ready .sg-sheet-acts:focus-within { opacity: 1; }
+/* 阶段说明一行：讲清这一张在两阶段里担什么职责（① 钉空间 / ② 只加人） */
+.sg-stage-hint { font-size: 12px; line-height: 1.5; margin: -2px 0 6px; }
+/* 本图实际参考：贴在各阶段图块内部（两阶段参考池不同，不能合并成一块） */
+.sg-refs { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.sg-refs > .dim { display: flex; align-items: center; gap: 5px; }
+.sg-refs .aux-refs { margin-top: 6px; }
+/* 基准图次级入口：说明在左、两个小钮靠右，与参考缩略图区分开 */
+.sg-base { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.sg-base > .dim { min-width: 0; }
+.sg-base .card-actions { margin-left: auto; flex: 0 0 auto; }
+/* 历史版本条：重生成不丢旧图，横向缩略便于新旧对比 */
+.sg-versions { display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  overflow-x: auto; padding-bottom: 2px; }
+.sg-versions img { flex: 0 0 auto; height: 48px; border-radius: 6px; cursor: pointer; }
+.sg-versions img:hover { outline: 1px solid var(--accent); }
+/* 组内分镜小卡（紧贴详情头）：标题区（名称+镜数+画布/分镜生成）与内容区（逐镜缩略格）分栏 */
+.sg-shots-card { margin: 10px 0 2px; border: 1px solid var(--border); border-radius: 10px;
+  background: #ffffff08; overflow: hidden; }
+.sg-shots-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); }
+.sg-shots-head .card-actions { margin-left: auto; flex: 0 0 auto; }
+.sg-shots-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; }
+/* 逐镜缩略格：已出图=首帧，未出图=占位方块；点击切到该镜 */
+.sg-shot-cell { flex: 0 0 auto; width: 84px; padding: 0; overflow: hidden; cursor: pointer;
+  display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px;
+  background: #0a0a0c; }
+.sg-shot-cell:hover { border-color: var(--accent); }
+.sg-shot-cell img, .sg-shot-blank { width: 100%; height: 52px; display: block; object-fit: cover; }
+.sg-shot-blank { display: flex; align-items: center; justify-content: center;
+  color: var(--dim); background: #131316; }
+.sg-shot-cell > b { padding: 3px 0; font-size: 11px; font-weight: 500; text-align: center;
+  color: var(--text); }
+.sg-shot-tag { cursor: pointer; }
+.sg-shot-tag:hover { color: var(--text); border-color: var(--accent); }
+/* 时间轴首卡（总览故事板）：已移出滚动区，常驻 wrap 左端；
+   收窄为正方形（宽=缩略 92 + 底栏 ≈ 卡总高） */
+.tl-card.tl-ov { flex: 0 0 146px; width: 146px;
+  position: relative; z-index: 2; box-shadow: 4px 0 10px #000a; }
+/* 窄屏（移动端）：故事板首卡收窄 */
+body.is-mobile .tl-card.tl-ov { flex: 0 0 66px; width: 66px; }
+/* 未生成：灰色占位卡 */
+.tl-card.tl-ov-empty { background: #202024; }
+/* 首卡固定 2×2 四宫格缩略：已生成首帧作背景撑满，缺的灰格占位 */
+.tl-quad { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+  gap: 6px; padding: 6px; }
+.tl-quad-cell { background: #1a1a1d center / cover no-repeat; border-radius: 3px; min-height: 0; }
+
+/* ── 总览视图（时间轴首卡选中时的 vt-top 主区，右侧辅助区复用 vt-aside） ── */
+.vt-ov { position: relative; flex: 1 1 auto; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; gap: 10px; }
+/* 章级动作：主预览右上角三点入口，划入或键盘聚焦时展开悬浮菜单 */
+.ov-actions { position: absolute; top: 8px; right: -4px; z-index: 5; }
+.ov-actions-trigger { width: 38px; height: 38px; padding: 0; border: 1px solid #ffffff24;
+  border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+  background: #0a0a0ccc; color: var(--text); font-size: 20px; cursor: pointer;
+  box-shadow: 0 6px 18px #0008; backdrop-filter: blur(8px); }
+.ov-actions-trigger:hover, .ov-actions:focus-within .ov-actions-trigger {
+  color: #fff; border-color: #ffffff48; background: #1f1f23e8; filter: none; }
+.ov-actions-menu { position: absolute; top: 100%; right: 0; width: 270px;
+  display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  border: 1px solid #ffffff1f; border-radius: 12px; background: #131316f2;
+  box-shadow: 0 16px 36px #000c; backdrop-filter: blur(12px);
+  opacity: 0; visibility: hidden; transform: translateY(-4px);
+  pointer-events: none; transition: opacity .14s, transform .14s, visibility .14s; }
+.ov-actions:hover .ov-actions-menu, .ov-actions:focus-within .ov-actions-menu {
+  opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.ov-actions-title { padding: 2px 6px 6px; color: var(--dim); font-size: 12px;
+  border-bottom: 1px solid #ffffff14; }
+.ov-actions-menu button { width: 100%; min-height: 34px; justify-content: flex-start;
+  text-align: left; white-space: nowrap; }
+/* 首帧宫格分页容器：宫格 + 右侧竖排页码（仅超一页时渲染） */
+.ov-wrap { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }
+/* 固定宫格铺满预览区：横屏 3×3=9 格/页，竖屏 4×2=8 格/页；首帧作背景撑满格子 */
+.ov-grid { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 10px;
+  background: #0a0a0c; border-radius: 12px; display: grid; gap: 10px;
+  grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+.ov-grid.portrait { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); }
+.ov-cell { position: relative; min-height: 0; border-radius: 8px; overflow: hidden;
+  background: #1a1a1d center / cover no-repeat; cursor: zoom-in; }
+.ov-cell-empty { cursor: default; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 24px; border: 1px dashed #ffffff1f; background-color: #101012; }
+.ov-cell-no { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px; border-radius: 999px;
+  background: #000a; color: #fff; font-size: 12px; line-height: 1.4; }
+/* 右侧竖排页码 */
+.ov-pages { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px;
+  justify-content: center; overflow-y: auto; }
+.ov-page { width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 6px;
+  background: var(--bg-soft); color: var(--dim); font-size: 13px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s; }
+.ov-page:hover:not(.active) { color: var(--text); background: var(--card-hover); filter: none; }
+.ov-page.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+/* 窄屏辅助区抽屉把手：常态隐藏，窄屏时悬浮在 vt-top 右缘垂直居中（展开后贴浮窗左缘） */
+.vt-aside-toggle { display: none; position: absolute; top: 50%; right: 0; transform: translateY(-50%);
+  z-index: 9; width: 22px; height: 56px; padding: 0; border: 0; cursor: pointer;
+  align-items: center; justify-content: center; border-radius: 8px 0 0 8px;
+  background: #000000a6; backdrop-filter: blur(4px); color: #fff; font-size: 16px;
+  transition: right .15s; }
+.vt-aside-toggle:hover { background: #000000d9; filter: none; }
+/* 窄屏回退：辅助区改为悬浮抽屉盖在主预览右侧（默认收起只留把手，点把手拉出/收回） */
+@media (max-width: 1100px) {
+  .vt-aside { position: absolute; top: 0; right: 0; height: 100%; max-height: none;
+    width: var(--aside-w, 400px); max-width: 90%; z-index: 8;
+    box-shadow: -10px 0 28px #000c; }
+  .vt-top:not(.aside-open) .vt-aside { display: none; }
+  .vt-resizer { display: none; }
+  .vt-aside-toggle { display: inline-flex; }
+  .vt-top.aside-open .vt-aside-toggle { right: min(var(--aside-w, 400px), 90%); }
+}
+
+/* ── 本章角色设定带 ─────────────────────── */
+.cast-bar h2 { margin-top: 0; }
+.cast-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.cast-card { min-width: 150px; max-width: 150px; text-align: center; font-size: 13px; flex-shrink: 0; }
+.cast-card img { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
+.cast-card b { display: block; margin-top: 6px; }
+.cast-empty {
+  height: 100px; display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--border); border-radius: 10px; color: var(--dim); font-size: 12px;
+  background: var(--bg-soft);
+}

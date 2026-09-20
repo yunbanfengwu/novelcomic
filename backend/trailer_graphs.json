@@ -1,0 +1,288 @@
+[
+ {
+  "slug": "project-trailer-canvas",
+  "graph": {
+   "edges": [
+    {
+     "to": "distill",
+     "from": "start"
+    },
+    {
+     "to": "gen",
+     "from": "distill"
+    },
+    {
+     "to": "end",
+     "from": "gen"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "start",
+     "type": "start",
+     "config": {
+      "ui": {
+       "tap": "start",
+       "title": "开始"
+      }
+     },
+     "position": {
+      "x": 40,
+      "y": 240
+     }
+    },
+    {
+     "id": "distill",
+     "type": "action",
+     "config": {
+      "ui": {
+       "h": 280,
+       "w": 420,
+       "tap": "tool",
+       "title": "蒸馏预告片提示词"
+      },
+      "args": {
+       "project_id": "{{input.project_id}}"
+      },
+      "name": "trailer.distill"
+     },
+     "position": {
+      "x": 420,
+      "y": 200
+     }
+    },
+    {
+     "id": "gen",
+     "type": "gen",
+     "config": {
+      "ui": {
+       "h": 273,
+       "w": 460,
+       "tap": "gen",
+       "model": "当前视频模型",
+       "title": "生成预告片"
+      },
+      "step": "gen_trailer",
+      "payload": {
+       "refs": "{{distill.refs}}",
+       "prompt": "{{distill.prompt}}"
+      },
+      "modality": "video",
+      "instruction": "按上方提示词生成 15 秒先导预告片；角色设定图作参考图保持一致。"
+     },
+     "position": {
+      "x": 920,
+      "y": 200
+     }
+    },
+    {
+     "id": "end",
+     "type": "end",
+     "config": {
+      "ui": {
+       "tap": "next",
+       "next": {
+        "attach": true,
+        "notify": [
+         "任务中心"
+        ],
+        "writes": [
+         "content_projects.config.trailer_url"
+        ]
+       },
+       "title": "保存预告片"
+      },
+      "outputs": {
+       "prompt": "{{gen.prompt}}",
+       "trailer_url": "{{gen.url}}"
+      }
+     },
+     "position": {
+      "x": 1440,
+      "y": 230
+     }
+    }
+   ]
+  }
+ },
+ {
+  "slug": "project-trailer-canvas@project-26@project-trailer",
+  "graph": {
+   "edges": [
+    {
+     "to": "distill",
+     "from": "start"
+    },
+    {
+     "to": "gen",
+     "from": "distill"
+    },
+    {
+     "to": "nmu6rjenz2",
+     "from": "start"
+    },
+    {
+     "to": "end",
+     "from": "gen"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "start",
+     "type": "start",
+     "config": {
+      "ui": {
+       "h": 460,
+       "w": 560,
+       "xy": true,
+       "tap": "start",
+       "title": "开始"
+      }
+     },
+     "position": {
+      "x": 40,
+      "y": 240
+     }
+    },
+    {
+     "id": "distill",
+     "type": "action",
+     "config": {
+      "ui": {
+       "h": 273,
+       "w": 460,
+       "xy": true,
+       "tap": "tool",
+       "title": "蒸馏预告片提示词"
+      },
+      "args": {
+       "project_id": "{{input.project_id}}"
+      },
+      "name": "trailer.distill"
+     },
+     "position": {
+      "x": 882,
+      "y": 301
+     }
+    },
+    {
+     "id": "gen",
+     "type": "gen",
+     "config": {
+      "ui": {
+       "h": 273,
+       "w": 460,
+       "xy": true,
+       "tap": "gen",
+       "model": "当前视频模型",
+       "title": "生成预告片"
+      },
+      "step": "gen_trailer",
+      "skills": [],
+      "charter": "",
+      "payload": {
+       "refs": "{{distill.refs}}",
+       "prompt": "{{distill.prompt}}"
+      },
+      "modality": "image",
+      "folder_ids": [],
+      "instruction": "按上方提示词生成 15 秒先导预告片；角色设定图作参考图保持一致。"
+     },
+     "position": {
+      "x": 1392,
+      "y": 601
+     }
+    },
+    {
+     "id": "nmu6ra0h21",
+     "type": "mount",
+     "config": {
+      "ui": {
+       "h": 410,
+       "w": 690,
+       "xy": true,
+       "tap": "mount",
+       "title": "项目预告片挂载点"
+      },
+      "target": "project_trailer",
+      "subject": {
+       "id": 26,
+       "kind": "project"
+      }
+     },
+     "position": {
+      "x": 2299,
+      "y": 113
+     }
+    },
+    {
+     "id": "nmu6rjenz2",
+     "type": "gen",
+     "config": {
+      "ui": {
+       "h": 259,
+       "w": 460,
+       "xy": true,
+       "tap": "video",
+       "state": {
+        "prompt": "生成先导预告片",
+        "ref_nodes": [],
+        "prompt_edited": true
+       },
+       "title": "Video",
+       "custom": true
+      },
+      "step": "gen_canvas_video",
+      "skills": [],
+      "charter": "",
+      "payload": {
+       "title": "Video",
+       "node_key": "nmu6rjenz2"
+      },
+      "skip_if": {
+       "sql": "SELECT url FROM content_attachments WHERE project_id=$1 AND kind='video' AND meta->>'node'=$2 ORDER BY id DESC LIMIT 1",
+       "args": [
+        "{{input.project_id}}",
+        "nmu6rjenz2"
+       ],
+       "reason": "这个节点已经生成过，跳过（选中它 → 生成条「发送」可强制重出）"
+      },
+      "modality": "video",
+      "folder_ids": []
+     },
+     "position": {
+      "x": 919,
+      "y": 958
+     }
+    },
+    {
+     "id": "end",
+     "type": "end",
+     "config": {
+      "ui": {
+       "tap": "next",
+       "next": {
+        "attach": true,
+        "notify": [
+         "任务中心"
+        ],
+        "writes": [
+         "content_projects.config.trailer_url"
+        ]
+       },
+       "title": "保存预告片"
+      },
+      "outputs": {
+       "prompt": "{{gen.prompt}}",
+       "trailer_url": "{{gen.url}}"
+      }
+     },
+     "position": {
+      "x": 1440,
+      "y": 230
+     }
+    }
+   ]
+  }
+ }
+]

@@ -1,0 +1,74 @@
+/* ═══════════ 全站 AI 对话悬浮（ChatFab）：右下角浮标 + 悬浮面板 ═══════════ */
+
+/* ── 浮标（portal 到 body，fixed，可拖动） ──
+   z 抬到置顶弹窗档 .rx-top(2001) 之上：画布弹框（rx-modal z=51，全屏尺寸）
+   与置顶弹窗、预览栈（内联 z 1000 起逐层 +10）里都必须能点到浮标。
+   仍低于 Lightbox(3000)？——不，浮窗主体 3100 盖过它；浮标本标 2100 即可，
+   大图预览时浮标被暂盖属合理（点不掉预览下的浮标不算层级 bug）。
+   缺省贴右下角由这里的 right/bottom 定；拖过之后
+   useDraggableFab 内联注入 left/top 接管。touch-action:none 让触屏也能拖。 */
+.chat-fab {
+  position: fixed; z-index: 2100; right: 24px; bottom: 24px;
+  /* radix 弹窗打开会把 body 设 pointer-events:none，浮标落在 body 上会被
+     连带禁点（tap-param-menu.floating 同款坑）：显式恢复 */
+  pointer-events: auto;
+  width: 44px; height: 44px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: var(--bg-soft); color: var(--text); font-size: 19px;
+  box-shadow: 0 4px 14px #0007; cursor: grab; touch-action: none;
+  transition: background .12s, transform .12s, box-shadow .12s;
+}
+.chat-fab:hover { background: var(--card-hover, #ffffff14); filter: none; transform: scale(1.06); }
+/* 拖动中：跟手不能有过渡动画，否则浮标追着指针慢半拍 */
+.chat-fab.dragging { cursor: grabbing; transform: scale(1.1); box-shadow: 0 8px 22px #000a;
+  transition: none; }
+
+/* 徽标定位基准是 .chat-fab 自身的 position:fixed */
+.chat-fab-badge {
+  position: absolute; top: -4px; right: -6px;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 8px; background: var(--accent); color: #fff;
+  font-size: 10px; line-height: 15px; text-align: center; font-weight: 600;
+  pointer-events: none;
+}
+.chat-fab-badge.err { background: var(--danger, #d5544f); }
+
+/* ── 对话面板 = 右侧停靠区（2026-09-18 由悬浮窗改为 dock） ──
+   贴屏幕右缘整高，作为布局实体存在；开启时 body 挂 .chat-dock-open（setChatOpen 同步），
+   页面(#root padding)与弹窗(rx-modal 居中修正/收窄、backdrop/Lightbox 避让)让位挤压，
+   不再「盖在内容上」——层级/穿透一类问题随形态消失。
+   z 仍 3100：dock 必须浮在画布弹框(rx-modal z=51)之上可见。 */
+.chat-float {
+  position: fixed; z-index: 3100; right: 0; top: 0; bottom: 0;
+  pointer-events: auto; /* 不被 body 的 radix 禁点连坐 */
+  width: min(400px, 34vw);
+  display: flex; flex-direction: column;
+  background: var(--bg, #131316); color: var(--text);
+  border: none; border-left: 1px solid var(--border);
+  border-radius: 0; overflow: hidden;
+  box-shadow: -18px 0 48px rgba(0, 0, 0, .38);
+  /* 不用入场动画/transition：被全屏遮挡时浏览器的动画时钟可能被冻结，
+     从首帧起步的位移/透明度会卡死——上一版悬浮窗「看不见」的同款教训。
+     dock 直接出现，靠阴影/边框表达层级即可。 */
+}
+
+/* ── dock 开启时的全站让位 ──
+   页面主内容 #root 收窄（页面根都是普通流布局）；弹窗居中点移到剩余区中心、
+   宽度收窄；遮罩与 Lightbox 同步避让。不加 transition：遮挡场景下动画时钟可能被冻结在首帧，挤压必须即时生效。 */
+body.chat-dock-open #root { padding-right: min(400px, 34vw); }
+/* 居中点移到剩余区中心 + **宽度一并适配**：弹窗是「变小」而不是「被推走」——
+   只移 left 不缩宽的话，宽弹窗（wide 880 / 默认 51vw）左缘会超出屏幕、
+   右缘被 dock 盖住（实测踩过）。max-width 兜底所有普通弹窗。 */
+body.chat-dock-open .rx-modal {
+  left: calc((100vw - min(400px, 34vw)) / 2);
+  max-width: calc(100vw - min(400px, 34vw) - 32px);
+}
+body.chat-dock-open .rx-modal-full { width: calc(94vw - min(400px, 34vw)); max-width: calc(94vw - min(400px, 34vw)); }
+/* 画布弹框（tap-modal 是 100vw 全屏、特异性 0,3,0 压过上面）：同名回压，宽度让出 dock */
+body.chat-dock-open .modal-card.rx-modal-full.tap-modal { width: calc(100vw - min(400px, 34vw)); max-width: calc(100vw - min(400px, 34vw)); }
+body.chat-dock-open .modal-backdrop { right: min(400px, 34vw); }
+body.chat-dock-open .lightbox-overlay { right: min(400px, 34vw); }
+
+/* ChatDock 根元素在停靠场景是 28% 宽的侧栏；悬浮壳里让它铺满壳 */
+.chat-float .tap-chat { width: 100%; max-width: none; border-left: none; height: 100%; }

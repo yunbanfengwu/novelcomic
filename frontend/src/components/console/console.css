@@ -1,0 +1,128 @@
+/* ═══ 用户控制台弹窗：左右结构（左菜单 + 右内容） ═══ */
+/* 控制台专属加宽：只影响含 .console-body 的弹窗，不动其它 wide 弹窗 */
+.rx-modal:has(> .console-body) { max-width: 1040px; }
+
+/* 撑到卡片边缘：抵消 .modal-card 的 20px 横向 / 18px 底部 padding，顶部补一条分隔线 */
+.console-body {
+  display: flex; height: 480px; max-height: 66vh;
+  margin: 4px -20px -18px; border-top: 1px solid var(--border);
+}
+
+/* 左侧菜单列 */
+.console-nav {
+  width: 176px; flex-shrink: 0; overflow-y: auto;
+  padding: 12px 10px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+/* nav 项为 <button>，需压掉 base 的渐变按钮外观 */
+.console-nav .console-nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; color: var(--text); border: 0; border-radius: 10px;
+  padding: 9px 12px; font-size: 14px; font-weight: 400; text-align: left;
+  cursor: pointer; transition: background .12s;
+}
+.console-nav .console-nav-item:hover:not(.active) {
+  background: var(--card-hover); filter: none; transform: none;
+}
+.console-nav .console-nav-item.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600; filter: none;
+}
+.console-nav .console-nav-item .icon { font-size: 16px; flex-shrink: 0; }
+
+/* 右侧内容区 */
+.console-panel { flex: 1; min-width: 0; overflow-y: auto; padding: 18px 20px; }
+
+/* 占位 / 空态 / 加载 */
+.console-empty {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; text-align: center;
+}
+.console-empty .icon { font-size: 34px; color: var(--dim); opacity: .7; }
+.console-empty b { font-size: 15px; }
+.console-loading {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  gap: 8px; color: var(--dim); font-size: 14px;
+}
+
+/* 回收站列表 */
+.trash-list { display: flex; flex-direction: column; gap: 10px; }
+.trash-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+}
+.trash-cover {
+  width: 46px; height: 46px; flex-shrink: 0; border-radius: 10px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #4d4d4d55; color: #ffffffd8; font-weight: 700; font-size: 17px;
+}
+.trash-cover img { width: 100%; height: 100%; object-fit: cover; }
+.trash-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.trash-meta b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trash-meta .dim { font-size: 12px; }
+.trash-acts { display: flex; gap: 8px; flex-shrink: 0; }
+.trash-acts button { display: inline-flex; align-items: center; gap: 5px; }
+.trash-acts .trash-purge:hover:not(:disabled) {
+  color: var(--danger, #e5484d); border-color: var(--danger, #e5484d);
+}
+
+/* 回收站顶部「项目 / 分镜」分段切换 */
+.recycle-seg { width: max-content; margin: 0 0 14px; }
+
+/* ── 分镜回收站 ── */
+.strash-bar { margin-bottom: 12px; }
+.strash-bar select {
+  min-width: 200px; padding: 7px 10px; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border); color: var(--text); font-size: 13px;
+}
+.strash-group {
+  margin-bottom: 16px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.strash-group-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; background: var(--card); border-bottom: 1px solid var(--border);
+}
+.strash-group-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.strash-group-title b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strash-group-title .dim { font-size: 12px; }
+.strash-group-head > .dim { margin-left: auto; font-size: 12px; flex-shrink: 0; white-space: nowrap; }
+.strash-group-head .trash-purge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; }
+.strash-group-head .trash-purge:hover:not(:disabled) {
+  color: var(--danger, #e5484d); border-color: var(--danger, #e5484d);
+}
+/* 缩略图网格 */
+.strash-shots {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px; padding: 12px;
+}
+.strash-shot { position: relative; display: flex; flex-direction: column; gap: 5px; }
+.strash-thumb {
+  position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
+  background: #1a1a1d; display: flex; align-items: center; justify-content: center;
+  color: #ffffffb0; font-size: 12px;
+}
+.strash-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.strash-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  color: #fff; font-size: 15px; text-shadow: 0 1px 4px #000b; pointer-events: none;
+}
+.strash-info { display: flex; align-items: baseline; gap: 6px; }
+.strash-info b { font-size: 12.5px; }
+.strash-info .dim { font-size: 11.5px; }
+.strash-del {
+  position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 7px; cursor: pointer;
+  background: #000000a6; color: #fff; font-size: 13px; opacity: 0; transition: opacity .12s, background .12s;
+}
+.strash-shot:hover .strash-del { opacity: 1; }
+.strash-del:hover:not(:disabled) { background: var(--danger, #e5484d); filter: none; }
+.canvas-global-trash { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.canvas-global-trash-head { display: flex; align-items: center; justify-content: space-between; }
+.canvas-global-trash-list { display: grid; gap: 6px; overflow-y: auto; }
+.canvas-global-trash-item { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; align-items: center;
+  gap: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-soft); }
+.canvas-global-trash-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px;
+  color: var(--accent); background: var(--accent-soft); }
+.canvas-global-trash-item > div { min-width: 0; display: grid; gap: 3px; }
+.canvas-global-trash-item b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.canvas-global-trash-item small { color: var(--dim); font-size: 10px; }

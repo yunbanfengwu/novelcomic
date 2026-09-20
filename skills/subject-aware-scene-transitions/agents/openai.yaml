@@ -1,0 +1,4 @@
+interface:
+  display_name: "连续主体感知转场"
+  short_description: "识别连续主体与平行叙事，判断跨场景是否必须补充过渡镜头"
+  default_prompt: "Use $subject-aware-scene-transitions to audit adjacent storyboard shots and repair only unjustified same-subject scene jumps."

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seedance2.0 提示词与运镜方法</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1c1e21;
+    --muted: #666b72;
+    --card: #f6f7f9;
+    --border: #e3e5e8;
+    --accent: #4f6bff;
+    --accent-bg: #eef1ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171b;
+      --fg: #e7e9ec;
+      --muted: #9aa0a8;
+      --card: #1d2025;
+      --border: #2b2f36;
+      --accent: #8aa0ff;
+      --accent-bg: #232a4a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 32px 60px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 34px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 15px;
+    margin: 22px 0 10px;
+    color: var(--accent);
+  }
+  .lead {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 0 0 20px;
+  }
+  .lead p { margin: 4px 0; }
+  ol, ul {
+    padding-left: 22px;
+    margin: 0 0 14px;
+  }
+  li { margin: 6px 0; }
+  .ex {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  code {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 20px;
+    font-size: 13.5px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--card);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:nth-child(even) td { background: color-mix(in srgb, var(--card) 55%, transparent); }
+  .note {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--accent-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .source {
+    margin: 0 0 22px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<h1>Seedance2.0 提示词与运镜方法整理</h1>
+<div class="lead">
+  <p>来源：火山引擎推荐的 Seedance2.0 视频/图片生成建议整理。</p>
+  <p>用途：走量短剧可直接套用基础方法，精品剧可结合进阶/专业方法灵活调整。</p>
+</div>
+
+<h2>一、20 个 Seedance2.0 提示词万能方法</h2>
+<p class="source">分类：基础必学 → 进阶提升 → 避坑技巧，覆盖人像、产品、风景、剧情全场景。</p>
+
+<h3>（一）基础必学（1-8）</h3>
+<ol>
+  <li><strong>主体精准定义法</strong>：拒绝模糊表述，必写"核心属性+外观特征+状态"，这是权重最高的指令。
+    <span class="ex">示例：20岁东亚淡颜女生，黑长直齐肩发，白色棉麻连衣裙，赤足站在海边，表情温柔。</span></li>
+  <li><strong>时序动作写法</strong>：写清动作先后顺序、速度、幅度，避免单点动作，解决画面卡顿、肢体变形。
+    <span class="ex">示例：女生缓步向前走，手臂自然摆动，发丝随海风轻柔扬起，全程连贯无卡顿。</span></li>
+  <li><strong>景运组合法</strong>：每句提示词搭配 1 种景别 + 1 种运镜，不堆砌，新手首选"近景+慢推""中景+跟拍""全景+慢拉"。
+    <span class="ex">示例：中景构图，平稳跟随运镜，展现女生完整舞蹈动作。</span></li>
+  <li><strong>光影具象法</strong>：不用"氛围感拉满"，写清光线类型+明暗效果。
+    <span class="ex">示例：黄昏日落逆光，金色丁达尔光效，柔光铺满画面，明暗对比柔和。</span></li>
+  <li><strong>画质必加句</strong>：所有场景通用，直接复制：<code>4K超高清、60fps高帧率、HDR、细节丰富、无噪点、无模糊</code>。</li>
+  <li><strong>风格单一法</strong>：单条提示词只加 1-2 个风格词，避免混乱。
+    <span class="ex">示例：复古胶片风格，色彩饱满，颗粒感明显。</span></li>
+  <li><strong>图生视频专属法</strong>：必加"与参考图主体完全一致，不修改核心设定"，避免偏离参考图。</li>
+  <li><strong>负面提示词精简法</strong>：只写核心避坑点。
+    <span class="ex">示例：无变脸、无肢体畸形、无穿模、无跳帧。</span></li>
+</ol>
+
+<h3>（二）进阶提升（9-16）</h3>
+<ol start="9">
+  <li><strong>权重标注法</strong>：用 <code>{}</code> 标注权重（1.0-1.5），核心主体和约束指令权重高于其他，避免算力失衡。
+    <span class="ex">示例：【30岁成熟男性{1.2}，黑色西装】，缓慢整理领带，画面稳定无抖动{1.1}。</span></li>
+  <li><strong>动作细节补充法</strong>：添加动作幅度、速度修饰词，增强画面生动性。
+    <span class="ex">示例：指尖轻轻划过脸颊，动作轻柔缓慢，无僵硬卡顿。</span></li>
+  <li><strong>场景氛围具象法</strong>：写清时间+环境+细节。
+    <span class="ex">示例：深夜城市街头，暖黄路灯，地面湿润反光，霓虹灯光映在墙面。</span></li>
+  <li><strong>中英文混写法</strong>：用中文写意境，英文写专业镜头/画质术语，效果翻倍。
+    <span class="ex">示例：日系清新风格，FPV drone shot（无人机第一视角），4K ultra HD。</span></li>
+  <li><strong>多镜头分镜法</strong>：按镜号拆分，每镜标注"景别+运镜+动作"，确保叙事连贯。
+    <span class="ex">示例：镜1：特写慢推，展示咖啡拉花细节；镜2：环绕运镜，展示咖啡整体造型。</span></li>
+  <li><strong>强制约束强化法</strong>：必加正向约束，杜绝崩坏。
+    <span class="ex">示例：面部清晰无畸变，五官比例自然，同一角色服装全程一致。</span></li>
+  <li><strong>节奏控制法</strong>：根据内容添加节奏提示。
+    <span class="ex">示例：慢动作定格3秒，再匀速恢复正常速度，突出核心细节。</span></li>
+  <li><strong>素材联动法</strong>：搭配参考图/视频，提示词添加"@图片1提取造型""@视频1提取动作节奏"，减少 AI 幻觉。</li>
+</ol>
+
+<h3>（三）避坑技巧（17-20）</h3>
+<ol start="17">
+  <li><strong>运镜不堆砌</strong>：单条提示词最多添加 2 种运镜，避免画面混乱崩坏。</li>
+  <li><strong>风格不混杂</strong>：不同时添加"复古""赛博朋克""日系"等多种风格，避免画面割裂。</li>
+  <li><strong>动作不剧烈</strong>：避免"快速跑跳""剧烈舞蹈"，优先选择"缓慢""匀速"动作，提升生成稳定性。</li>
+  <li><strong>避免模糊表述</strong>：删除"好看、高级、有感觉"等抽象词，全部替换为具体描述。</li>
+</ol>
+
+<h2>二、100 个 Seedance2.0 运镜方法</h2>
+<p class="source">运镜是视频质感的核心，Seedance2.0 能精准识别运镜指令，不用专业剪辑知识，写对指令就能生成专业级镜头。分类：基础运镜 → 组合运镜 → 专业运镜（当前整理 40 个，覆盖高频场景，按需扩充至 100 个）。</p>
+
+<h3>（一）基础运镜（10 个，覆盖 80% 日常场景）</h3>
+<table>
+  <thead><tr><th>#</th><th>运镜</th><th>关键词</th><th>适用场景</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>慢推镜</td><td>缓慢推近、逐渐放大、向主体推进</td><td>突出细节、聚焦重点</td></tr>
+    <tr><td>2</td><td>慢拉镜</td><td>缓慢拉远、镜头后退、拉出全景</td><td>展现场景、营造开阔感</td></tr>
+    <tr><td>3</td><td>横摇镜</td><td>向左摇镜头、向右平移、横向扫视</td><td>展示广阔场景</td></tr>
+    <tr><td>4</td><td>竖摇镜</td><td>镜头上移、慢慢向下摇</td><td>展现高度、揭晓画面</td></tr>
+    <tr><td>5</td><td>环绕镜</td><td>半圈环绕、360度环绕、轻轻环绕</td><td>立体展示主体</td></tr>
+    <tr><td>6</td><td>跟拍镜</td><td>平稳跟拍、紧紧跟随、侧面跟拍</td><td>沉浸式代入</td></tr>
+    <tr><td>7</td><td>固定镜</td><td>固定镜头、中景机位不动</td><td>对话、纪实场景</td></tr>
+    <tr><td>8</td><td>微距镜</td><td>微距拍摄、近距离聚焦</td><td>展示产品/细节纹理</td></tr>
+    <tr><td>9</td><td>定格镜</td><td>定格3秒、画面静止</td><td>突出核心瞬间</td></tr>
+    <tr><td>10</td><td>轻微抖镜</td><td>手持微抖、轻微晃动</td><td>营造纪实感</td></tr>
+  </tbody>
+</table>
+
+<h3>（二）组合运镜（20 个，进阶款，拉满层次感）</h3>
+<table>
+  <thead><tr><th>#</th><th>组合</th><th>关键词</th><th>适用场景</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>推拉结合</td><td>先推近特写，再拉远全景</td><td>悬念揭示、产品展示</td></tr>
+    <tr><td>2</td><td>跟拍+环绕</td><td>跟拍主体移动，同时镜头环绕</td><td>自然切换视角</td></tr>
+    <tr><td>3</td><td>升降+横摇</td><td>镜头上升，同时横向摇动</td><td>模拟航拍、展现宏大场景</td></tr>
+    <tr><td>4</td><td>环绕+慢推</td><td>环绕主体的同时，缓慢推近</td><td>突出主体、增强张力</td></tr>
+    <tr><td>5</td><td>慢推+定格</td><td>缓慢推近至特写，定格3秒</td><td>突出细节、强化记忆点</td></tr>
+    <tr><td>6</td><td>横摇+跟拍</td><td>横向摇动镜头，同时跟拍主体</td><td>展示场景+跟随动作</td></tr>
+    <tr><td>7</td><td>竖摇+慢拉</td><td>镜头竖摇，同时缓慢拉远</td><td>展现空间层次</td></tr>
+    <tr><td>8</td><td>微距+慢推</td><td>微距拍摄，同时缓慢推进</td><td>展示细节纹理</td></tr>
+    <tr><td>9</td><td>固定+快切</td><td>固定镜头与快切交替</td><td>卡点视频、节奏向内容</td></tr>
+    <tr><td>10</td><td>跟拍+慢拉</td><td>跟拍主体，同时缓慢拉远</td><td>展现主体与环境关系</td></tr>
+    <tr><td>11</td><td>环绕+慢拉</td><td>环绕主体，同时缓慢拉远</td><td>立体展示+展现场景</td></tr>
+    <tr><td>12</td><td>慢推+横摇</td><td>缓慢推近，同时横向摇动</td><td>聚焦细节+展示环境</td></tr>
+    <tr><td>13</td><td>轻微抖镜+跟拍</td><td>手持微抖，同时跟拍主体</td><td>增强纪实感、代入感</td></tr>
+    <tr><td>14</td><td>定格+慢拉</td><td>定格后，缓慢拉远</td><td>收尾场景、营造疏离感</td></tr>
+    <tr><td>15</td><td>微距+环绕</td><td>微距拍摄，同时环绕主体</td><td>全方位展示细节</td></tr>
+    <tr><td>16</td><td>跟拍+快切</td><td>跟拍主体，同时快速切换镜头</td><td>动作场面、节奏向</td></tr>
+    <tr><td>17</td><td>慢拉+横摇</td><td>缓慢拉远，同时横向摇动</td><td>展现场景全貌</td></tr>
+    <tr><td>18</td><td>环绕+定格</td><td>环绕主体后，定格特写</td><td>突出主体、收尾点睛</td></tr>
+    <tr><td>19</td><td>慢推+竖摇</td><td>缓慢推近，同时竖向摇动</td><td>展示主体细节+高度</td></tr>
+    <tr><td>20</td><td>固定+慢推</td><td>固定机位，缓慢推近</td><td>对话场景、情绪递进</td></tr>
+  </tbody>
+</table>
+
+<h3>（三）专业运镜（10 个，电影级，质感翻倍）</h3>
+<table>
+  <thead><tr><th>#</th><th>运镜</th><th>关键词</th><th>适用场景</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>希区柯克变焦</td><td>希区柯克式变焦、主体大小不变，背景极速压缩/拉伸</td><td>营造时空扭曲感、悬疑感</td></tr>
+    <tr><td>2</td><td>一镜到底</td><td>一镜到底、全程不切镜</td><td>沉浸式漫游、连贯叙事</td></tr>
+    <tr><td>3</td><td>荷兰角</td><td>荷兰角构图、画面倾斜</td><td>营造不安、悬疑氛围</td></tr>
+    <tr><td>4</td><td>升格慢动作</td><td>升格慢动作、慢镜头</td><td>关键瞬间、增加仪式感</td></tr>
+    <tr><td>5</td><td>匹配剪辑转场</td><td>匹配转场、动作匹配切镜</td><td>无缝转场、时空跳跃</td></tr>
+    <tr><td>6</td><td>螺旋环绕</td><td>高速螺旋环绕拍摄</td><td>能量爆发、华丽眩晕感</td></tr>
+    <tr><td>7</td><td>俯冲运镜</td><td>俯冲拍摄、镜头向下快速移动</td><td>紧张感、冲击力</td></tr>
+    <tr><td>8</td><td>拉升运镜</td><td>快速拉升镜头、远离主体</td><td>开阔感、揭晓全景</td></tr>
+    <tr><td>9</td><td>摇镜快切</td><td>快速摇镜+镜头快切</td><td>节奏向、动感画面</td></tr>
+    <tr><td>10</td><td>焦外虚化运镜</td><td>焦外虚化、镜头缓慢移动</td><td>突出主体、营造氛围感</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  注：原始素材标题为"100 个运镜方法"，当前整理已覆盖基础/组合/专业共 40 个高频运镜；如后续拿到"场景专属运镜"等剩余 60 个，可补充到本文件的第四部分。
+</div>
+
+</body>
+</html>

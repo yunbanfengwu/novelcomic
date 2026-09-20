@@ -1,0 +1,107 @@
+# ===== Node / 前端 =====
+node_modules/
+dist/
+dist-ssr/
+build/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# ===== Python / 后端 =====
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-wheel-metadata/
+
+# ===== 环境变量 / 密钥（绝不入库）=====
+.env
+.env.local
+.env.*.local
+backend/.env
+# 保留示例模板
+!.env.example
+!**/*.env.example
+
+# ===== 数据库 / 数据 =====
+*.db
+*.sqlite3
+backend/data/backups/*.json
+
+# ===== 日志 =====
+logs/
+*.log
+
+# ===== 缓存 / 测试产物 =====
+.cache/
+.parcel-cache/
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# ===== 编辑器 / IDE =====
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.suo
+*.sw?
+*~
+
+# ===== 工具 / 代理配置 =====
+.claude/
+.cursor/
+.simi/
+.trae/rules/
+
+# ===== OS 生成文件 =====
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===== 杂项 =====
+*.pid
+*.seed
+*.pid.lock
+*.tgz
+*.bak
+*.backup
+*.bundle
+tmp/
+temp/
+
+# ===== 本地不入库素材（资源包 CSV 导出等）=====
+/ignore/
+backups
+
+# ===== 本地跑图产物（分镜导出宫格/单图，非源码）=====
+storyboard-ep*/
+
+# ===== 浏览器自动化临时会话 =====
+.tmp-browser/
+
+# ===== Sodo 会话产物与临时调试文件 =====
+.sodo/
+qa_*.png
+qa_*.jpg
+nul
+.tmp-*.js
+tools_patch_ctx.py

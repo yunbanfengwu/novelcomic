@@ -1,0 +1,279 @@
+/* ── 公共对话面板（components/chat）──────────────────────────────
+   从 tapflow.css 迁出（2026-09）：画布外引入时不再依赖 .tap-page 前缀，
+   hover 等交互样式挂在 .tap-chat 自己的作用域上。消息卡片类名保持原样
+   （.tap-msg-user / .tap-msg-status / .tap-msg-op / .tap-msg-ai / .tap-chat-chips），
+   .tap-msg-feedback 反馈行按需求删除。 */
+
+.tap-chat {
+  /* 与属性/执行面板同宽，右侧停靠区不会因为切面板而跳宽度 */
+  width: 28%; min-width: 320px; max-width: 460px;
+  flex: none; display: flex; flex-direction: column; min-height: 0;
+  background: #131316; border-left: 1px solid #232327;
+}
+.tap-chat-head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid #1f1f23; font-size: 14px;
+}
+.tap-chat-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-chat-title .caret { color: #8a8a90; font-size: 11px; }
+.tap-chat-head .tap-seg-mini { margin-left: auto; flex: none; }
+/* seg-mini 里 tapflow.css 的按钮样式没带 nowrap，窄面板下「对话」会被压成两行 */
+.tap-chat-head .tap-seg-mini button { white-space: nowrap; }
+.tap-chat-acts { margin-left: auto; display: inline-flex; gap: 2px; }
+
+/* 面板内的工具按钮自包含：本组件会出现在画布之外，不能依赖 tapflow.css 的 .tap-tool。
+   必须**整套 reset** 掉 base.css 全局 button（紫渐变底 + padding 9px 18px + 白字）：
+   只写尺寸的话紫底还在、padding 把图标挤得不居中（实测踩过）。
+   图标按钮统一 flex 居中，比依赖行内基线可靠。 */
+.tap-chat .tap-tool {
+  width: 30px; height: 30px; border-radius: 8px; color: #d2d2d7; font-size: 14px;
+  background: none; border: 0; padding: 0; margin: 0; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  cursor: pointer; transition: background .12s, color .12s; filter: none; transform: none;
+}
+.tap-chat .tap-tool:hover { background: #ffffff12; color: #fff; }
+.tap-chat .tap-tool.on { background: #26262e; color: #fff; }
+.tap-chat .tap-tool:hover { background: #2c2c31; }
+
+.tap-chat-body { flex: 1; overflow-y: auto; padding: 16px 16px 10px; min-height: 0; }
+
+/* 空态：无会话消息时给引导（原演示假数据已删） */
+.tap-chat-empty {
+  height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; color: #55555c; text-align: center; padding: 30px 20px;
+}
+.tap-chat-empty svg, .tap-chat-empty .icon { width: 30px; height: 30px; margin-bottom: 6px; opacity: .55; }
+.tap-chat-empty p { font-size: 14px; color: #8a8a92; }
+.tap-chat-empty em { font-style: normal; font-size: 12.5px; color: #55555c; line-height: 1.6; max-width: 240px; }
+
+.tap-msg-user {
+  background: #1e1e22; border: 1px solid #2c2c31; border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 18px;
+}
+.tap-msg-user .bubble { font-size: 13.5px; line-height: 1.65; color: #e2e2e6; word-break: break-word; }
+.tap-msg-user .meta { display: flex; gap: 14px; margin-top: 12px; font-size: 12px; color: #9a9aa1; flex-wrap: wrap; }
+.tap-msg-status { font-size: 13px; color: #a6a6ac; margin-bottom: 8px; }
+.tap-msg-status > div { display: flex; align-items: center; gap: 6px; }
+.tap-msg-status .sub { margin-top: 8px; color: #8a8a90; }
+.tap-msg-status.ok { color: #4cc38a; }
+.tap-msg-status.err { color: #e5484d; }
+.tap-msg-op {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #1c1c1f; border-radius: 8px;
+  padding: 5px 10px; font-size: 12.5px; color: #b8b8be; margin: 6px 0 10px;
+}
+.tap-chat .tap-msg-op { border: 0; cursor: pointer; }
+.tap-chat .tap-msg-op:hover { background: #232328; color: #e2e2e6; }
+.tap-msg-ai { font-size: 13.5px; line-height: 1.8; color: #d8d8dc; margin: 8px 0; }
+.tap-msg-ai .md { color: #d8d8dc; font-size: 13.5px; }
+.tap-msg-ai .tap-chat-media { display: block; max-width: 100%; max-height: 320px; margin-top: 8px; border-radius: 8px; object-fit: contain; background: #101014; }
+.tap-chat-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* 特异性压过 tapflow.css 里生成条胶囊编辑器的同名 .tap-chip（内联胶囊） */
+.tap-chat-chips .tap-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #1a1a1e; border: 0; border-radius: 17px; cursor: pointer;
+  padding: 7px 13px; font-size: 12.5px; color: #cfcfd4;
+}
+.tap-chat-chips .tap-chip:hover { background: #232328; color: #e8e8ea; }
+
+/* 运行日志折叠组：一次 run 一张卡，头部一行紧凑摘要（对齐「已执行 N 个任务」样式），
+ * 明细默认收起、点右侧箭头展开 */
+.tap-msg-run {
+  background: #17171a; border: 1px solid #232327; border-radius: 12px;
+  padding: 11px 12px; margin: 8px 0 12px; font-size: 13px;
+}
+.tap-msg-run-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  color: #c9c9cf; font-size: 13px; text-align: left;
+}
+.tap-msg-run-head .icon { flex: none; font-size: 15px; color: #8a8a92; }
+.tap-msg-run.running .tap-msg-run-head .icon { color: #8f88d8; }
+.tap-msg-run.err .tap-msg-run-head .icon { color: #e5484d; }
+.tap-msg-run-head .texts { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tap-msg-run-head .title { font-size: 13.5px; color: #e4e4e8; }
+.tap-msg-run-head .sub {
+  font-size: 12px; color: #6f6f76;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tap-msg-run.running .tap-msg-run-head .title { color: #b9b3ef; }
+/* 摘要卡里的「查看画布」胶囊：紧凑版（不复用 op 的大外边距） */
+.tap-msg-run-head .tap-msg-op { flex: none; margin: 0; }
+.tap-msg-run-head .caret {
+  flex: none; background: none; border: 0; padding: 2px 4px; cursor: pointer;
+  color: #6f6f76; font-size: 11px; transition: transform .15s ease;
+}
+.tap-msg-run-head .caret.open { transform: rotate(180deg); }
+.tap-msg-run-lines {
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid #232327;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.tap-msg-run-line { display: flex; gap: 8px; font-size: 12px; color: #b9b9c0; }
+.tap-msg-run-line .t { flex: none; color: #55555c; }
+.tap-msg-run-line.ok .text { color: #4cc38a; }
+.tap-msg-run-line.err .text { color: #e5484d; }
+.tap-msg-run-line.info .text { color: #8a8a90; }
+
+/* 任务队列（后台运行清单） */
+.tap-task-list { display: flex; flex-direction: column; }
+.tap-task-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 4px; border-bottom: 1px solid #1c1c20; font-size: 13px;
+}
+.tap-task-row:last-child { border-bottom: 0; }
+.tap-task-main { min-width: 0; flex: 1; }
+.tap-task-name { display: block; color: #e2e2e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-task-sub { display: block; margin-top: 3px; font-size: 12px; color: #6f6f76; }
+.tap-task-state { flex: none; display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; }
+.tap-task-badge {
+  flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: #1e1e22; color: #9a9aa1;
+}
+.tap-task-badge.running { background: #2a2416; color: #d9a83c; }
+.tap-task-badge.done { background: #14251e; color: #4cc38a; }
+.tap-task-badge.failed { background: #2a1c1e; color: #e5484d; }
+.tap-task-error { display: block; margin-top: 4px; font-size: 12px; color: #e5484d; word-break: break-all; }
+
+/* ---- 三条杠会话弹层：新对话 + 历史（活跃在前）---- */
+.tap-menu-btn { flex: none; }
+.tap-chat-menu {
+  position: absolute; top: calc(100% - 4px); left: 8px; right: 8px; z-index: 40;
+  display: flex; flex-direction: column; min-width: 0; max-height: 420px;
+  padding: 8px; border-radius: 12px; background: #1c1c20;
+  border: 1px solid #32323a; box-shadow: 0 16px 40px #000a;
+}
+.tap-menu-new {
+  display: flex; align-items: center; gap: 8px; padding: 9px 10px; flex: none;
+  background: none; border: 0; border-radius: 8px; cursor: pointer; font-family: inherit;
+  color: #cfcfd8; font-size: 13px; text-align: left;
+}
+.tap-menu-new:hover { background: #2a2a31; color: #fff; }
+.tap-menu-list { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 6px; min-height: 0; }
+.tap-menu-item {
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px;
+  background: none; border: 0; border-radius: 8px; cursor: pointer; font-family: inherit;
+  text-align: left; color: #b4b4ba;
+}
+.tap-menu-item:hover { background: #2a2a31; }
+.tap-menu-item.on { background: #26262e; color: #e8e8ec; }
+.tap-menu-item em { font-style: normal; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-menu-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6f6f78; }
+.tap-menu-meta i {
+  font-style: normal; padding: 1px 6px; border-radius: 7px;
+  background: #3b82f633; color: #7cb0ff;
+}
+.tap-menu-empty { padding: 14px; text-align: center; color: #6f6f78; font-size: 12px; }
+
+/* ---- 输入卡：多行编辑器 + 参考附件 + @ 引用（对齐画布生成条形态）---- */
+.tap-chat-input { border-top: 1px solid #1f1f23; padding: 12px 14px; }
+/* 参考附件条：缩略图可删（样式同画布 tap-ref-node，此处自包含） */
+.tap-chat-refs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.tap-chat-refs .tap-ref-node {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  width: 44px; height: 44px; padding: 0; border-radius: 10px; flex: none;
+  max-width: 180px; background: #232327; overflow: hidden;
+}
+.tap-chat-refs .tap-ref-node img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tap-ref-del {
+  position: absolute; top: 0; right: 0; width: 16px; height: 16px;
+  border-radius: 0 10px 0 8px; background: #000c; color: #e8e8ea;
+  font-size: 11px; line-height: 1; opacity: 0; transition: opacity .12s;
+}
+.tap-chat-refs .tap-ref-node:hover .tap-ref-del { opacity: 1; }
+.tap-ref-del:hover { background: #e5484d; }
+/* 卡片容器：参考条 + 编辑器 + 工具行 */
+.tap-chat-card {
+  display: flex; flex-direction: column; border-radius: 14px;
+  border: 1px solid #2c2c31; background: #1a1a1e;
+  transition: border-color .12s;
+}
+.tap-chat-card:focus-within { border-color: #4c4c58; }
+/* 多行编辑器（contenteditable）：空时显示占位文案，随内容长高 */
+.tap-chat-edi {
+  display: block; min-height: 44px; max-height: 168px; overflow-y: auto;
+  padding: 10px 12px 2px; color: #e8e8ec; font-size: 13px;
+  line-height: 1.65; outline: none; white-space: pre-wrap; word-break: break-word;
+}
+.tap-chat-edi:empty::before { content: attr(data-ph); color: #5c5c66; pointer-events: none; display: block; }
+/* @ 引用胶囊：输入框内不可编辑，整体删除是浏览器默认行为 */
+.tap-chat-edi .tap-chip {
+  display: inline-flex; align-items: center; height: 18px; margin: 0 2px;
+  padding: 0 6px; border-radius: 9px; background: #2e2e37; color: #cfcfd8;
+  font-size: 11px; vertical-align: -3px; cursor: default; user-select: none;
+}
+.tap-chat-edi .tap-chip b { font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* @ 候选菜单：弹在编辑器上方（样式同画布生成条 tap-mention-menu） */
+.tap-mention-host { display: block; position: relative; }
+.tap-chat .tap-mention-menu {
+  position: absolute; left: 4px; bottom: calc(100% + 6px); z-index: 33;
+  display: flex; flex-direction: column; gap: 2px; min-width: 220px; max-width: 320px;
+  padding: 6px; border-radius: 12px; background: #1c1c20;
+  border: 1px solid #32323a; box-shadow: 0 12px 32px #0009;
+}
+.tap-chat .tap-mention-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: none; border: 0; cursor: pointer; font-family: inherit;
+  border-radius: 8px; color: #d6d6dc; font-size: 12.5px; text-align: left;
+}
+.tap-chat .tap-mention-item:hover { background: #2a2a31; }
+.tap-chat .tap-mention-item .icon { flex: none; opacity: .7; }
+.tap-chat .tap-mention-item em { font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-mention-hint { padding: 4px 8px 2px; color: #6f6f78; font-size: 11px; }
+/* 工具行：+/@ | 模型名 || 语音 | 发送 */
+.tap-chat-foot { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; min-width: 0; }
+.tap-foot-left, .tap-foot-right { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.tap-foot-right { margin-left: auto; }
+.tap-foot-btn {
+  width: 28px; height: 28px; border-radius: 8px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; padding: 0; font-family: inherit;
+  color: #9a9aa1; font-size: 14px;
+}
+.tap-foot-btn:hover { background: #26262c; color: #e8e8ec; }
+.tap-foot-at b { font-weight: 600; font-size: 13px; }
+.tap-chat-model {
+  flex: none; min-width: 0; max-width: 170px; display: inline-flex;
+  align-items: center; gap: 6px; margin-left: 4px;
+  font-size: 12px; color: #8b8b93;
+}
+.tap-chat-model .icon { flex: none; opacity: .8; }
+.tap-chat-model > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-chat .tap-send-btn {
+  /* 画布生成条同款：正圆白底黑箭头，hover 反色纯黑（对齐 .tap-page .tap-send-btn） */
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  background: #f0f0f3; color: #111; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+}
+.tap-chat .tap-send-btn:hover { background: #000; color: #fff; }
+.tap-chat .tap-send-btn.busy { opacity: .5; cursor: default; }
+
+/* 思考过程时间线（流式规划回复）：规划步骤逐步点亮，完成后可折叠回放 */
+.tap-msg-think {
+  background: #141417; border: 1px solid #232328; border-radius: 12px;
+  padding: 9px 12px; margin: 8px 0 10px; font-size: 13px;
+}
+.tap-msg-think .tap-think-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: #a8a4c8; font-size: 12.5px; text-align: left;
+}
+.tap-msg-think .tap-think-head:hover { color: #cfcce6; }
+.tap-msg-think .tap-think-head .count { flex: none; color: #6f6f76; font-size: 11px; }
+.tap-msg-think .tap-think-head .caret { flex: none; color: #6f6f76; font-size: 11px; transition: transform .15s ease; }
+.tap-msg-think .tap-think-head .caret.open { transform: rotate(180deg); }
+.tap-think-steps { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.tap-think-step { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
+.tap-think-step .ico { flex: none; display: inline-flex; width: 14px; color: #6f6f76; position: relative; top: 2px; }
+.tap-think-step.done .ico { color: #4cc38a; }
+.tap-think-step.err .ico { color: #e5484d; }
+.tap-think-step.run .ico { color: #8f88d8; }
+.tap-think-step .label { color: #c9c9cf; }
+.tap-think-step.run .label { color: #b5b0e3; }
+.tap-think-step .detail { color: #5c5c64; font-size: 11.5px; }
+/* 流式输出中的尾随光标 */
+.tap-chat-caret {
+  display: inline-block; width: 7px; height: 15px; margin-left: 2px;
+  background: #8f88d8; vertical-align: -2px; border-radius: 1px;
+  animation: tap-caret-blink .9s steps(1) infinite;
+}
+@keyframes tap-caret-blink { 50% { opacity: 0; } }

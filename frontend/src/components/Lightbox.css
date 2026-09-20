@@ -1,0 +1,56 @@
+/* ── 图片放大预览（Lightbox，左右布局：左图 | 右信息面板） ─────────────── */
+.lightbox-overlay {
+  /* 高于生成/预览模态栈（ElementPreviewModal 用 1000+），确保放大图永远在最上层 */
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(0, 0, 0, .82);
+  backdrop-filter: blur(4px); cursor: zoom-out;
+  animation: lightbox-fade .15s ease;
+}
+.lightbox-body { display: flex; gap: 16px; width: 94vw; height: 92vh; cursor: default; }
+/* 无图模式（要素无设定图等）：只显示信息面板，居中 */
+.lightbox-body.no-img { width: auto; height: auto; max-height: 92vh; }
+.lightbox-body.no-img .lightbox-side { flex: 0 1 auto; width: 420px; max-width: 90vw; }
+.lightbox-main {
+  flex: 1 1 auto; min-width: 0; min-height: 0;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+/* 放大到原始尺寸时允许在图区内滚动查看 */
+.lightbox-main.scroll { overflow: auto; align-items: flex-start; justify-content: flex-start; }
+
+.lightbox-img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; border-radius: 10px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .6);
+  cursor: zoom-in; user-select: none;
+}
+/* 原始尺寸：不再受容器限制，可滚动浏览细节 */
+.lightbox-img.zoomed { max-width: none; max-height: none; cursor: zoom-out; }
+
+/* 右侧信息面板：标题 + 提示词/基本信息/操作（内容超高自滚动） */
+.lightbox-side {
+  flex: 0 0 380px; max-width: 36vw; min-height: 0; overflow-y: auto;
+  background: #131316; border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.lightbox-title { font-weight: 600; font-size: 14px; line-height: 1.5; }
+/* 面板通用文块（LightboxInfo 与各业务面板共用） */
+.lb-label { font-size: 12px; color: #8a8a90; letter-spacing: .5px; margin-bottom: 4px; }
+.lb-text { white-space: pre-wrap; font-size: 13px; line-height: 1.7; word-break: break-word; }
+
+.lightbox-close {
+  position: fixed; top: 16px; right: 20px; z-index: 3001;
+  width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: rgba(0, 0, 0, .5); color: #fff;
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.lightbox-close:hover { background: rgba(255, 255, 255, .18); }
+
+/* 窄屏：上下布局兜底 */
+@media (max-width: 900px) {
+  .lightbox-body { flex-direction: column; }
+  .lightbox-side { flex: 0 0 auto; max-width: none; max-height: 40vh; }
+}
+
+@keyframes lightbox-fade { from { opacity: 0; } to { opacity: 1; } }

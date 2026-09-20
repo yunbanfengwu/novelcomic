@@ -1,0 +1,168 @@
+/* ═══ 引导式新建项目：弹框外壳 + 左右两列（步骤 / 输入·对话）═══ */
+/* 复合选择器压过 base 的 .modal-card（padding/gap/宽度），符合分层纪律 */
+.modal-card.guide-modal-card {
+  padding: 0; gap: 0; max-width: 940px; width: 100%;
+  height: min(680px, 88vh); overflow: hidden;
+}
+
+.guide-shell { display: flex; height: 100%; min-height: 0; }
+
+/* ── 编辑抽屉：总览「编辑」从右侧拉出，内嵌 GuidedCreate（编辑模式）── */
+.drawer-backdrop { position: fixed; inset: 0; z-index: 50; background: #0006; }
+.edit-drawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(880px, 92vw); overflow: hidden;
+  background: var(--card); border-left: 1px solid var(--border);
+  box-shadow: -18px 0 48px #0008;
+  animation: drawer-in .22s ease-out;
+}
+@keyframes drawer-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── 左列：步骤 ── */
+.guide-rail {
+  flex-shrink: 0; width: 248px; padding: 22px 18px;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background:
+    radial-gradient(320px 200px at 20% -10%, #6d8dff24, transparent 60%),
+    var(--bg-soft);
+}
+.guide-rail-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; margin-bottom: 22px; }
+.guide-rail-logo {
+  width: 32px; height: 32px; border-radius: 9px; font-size: 17px;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.guide-rail-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.guide-step {
+  display: flex; align-items: center; gap: 12px; padding: 10px 10px;
+  border-radius: 10px; border: 1px solid transparent; transition: background .12s, border-color .12s;
+}
+.guide-step.clickable { cursor: pointer; }
+.guide-step.clickable:hover { background: var(--card-hover); }
+.guide-step.active { background: var(--accent-soft); border-color: #6d8dff55; }
+.guide-step-dot {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+  background: var(--card); border: 1px solid var(--border); color: var(--dim);
+}
+.guide-step.active .guide-step-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.guide-step.done .guide-step-dot { color: var(--accent); border-color: var(--accent); }
+.guide-step-label { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+.guide-step-label b { font-size: 14px; }
+.guide-step.active .guide-step-label b { color: var(--accent); }
+.guide-step-label em { font-style: normal; font-size: 11px; color: var(--dim); }
+.guide-rail-foot { font-size: 12px; margin-top: 14px; line-height: 1.5; }
+
+/* ── 右列：输入 / 对话 ── */
+.guide-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.guide-pane-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 20px 24px 12px; border-bottom: 1px solid var(--border);
+}
+.guide-pane-head h2 { margin: 0 0 4px; font-size: 19px; }
+.guide-pane-head p { margin: 0; font-size: 13px; }
+.guide-pane-body { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; }
+.guide-pane-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; border-top: 1px solid var(--border);
+}
+.guide-foot-right { display: flex; gap: 8px; }
+
+/* ── 步内表单 ── */
+.guide-form { display: flex; flex-direction: column; gap: 8px; }
+.guide-combined-basic { display: flex; flex-direction: column; gap: 24px; }
+.guide-combined-basic > .guide-form + .guide-form { padding-top: 20px; border-top: 1px solid var(--border); }
+.guide-form .modal-label { margin-top: 6px; }
+.guide-form .modal-label:first-child { margin-top: 0; }
+.guide-draft { min-height: 160px; }
+/* 草稿框右下角星标：一键智能生成书名/梗概/主线 */
+.guide-draft-wrap { position: relative; display: flex; }
+.guide-draft-wrap .guide-draft { flex: 1; padding-right: 44px; }
+.guide-draft-gen {
+  position: absolute; right: 10px; bottom: 10px;
+  width: 30px; height: 30px; padding: 0; border-radius: 8px; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  color: #fff; border: none; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  transition: filter .12s, opacity .12s;
+}
+.guide-draft-gen:hover:not(:disabled) { filter: brightness(1.08); }
+.guide-draft-gen:disabled { opacity: .5; cursor: default; }
+.guide-style-text { min-height: 88px; }
+.guide-tags { display: flex; gap: 6px; }
+.guide-inline-actions { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.guide-restyle .modal-input { flex: 1; min-width: 0; }
+.guide-restyle button, .guide-mat-actions button { flex-shrink: 0; }
+
+/* ── 画风/文风选择卡片墙（知识库画风库/文风库）：一行三列小卡 ── */
+.style-cards {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; margin: 4px 0 14px;
+}
+@media (max-width: 640px) { .style-cards { grid-template-columns: repeat(2, 1fr); } }
+.style-card {
+  position: relative; display: flex; flex-direction: column; gap: 0; padding: 0;
+  text-align: left; background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: 0; overflow: hidden; cursor: pointer; font: inherit; color: inherit;
+}
+.style-card:hover { border-color: var(--border-strong); }
+.style-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* 画幅比例行：比例切换 tab 在左，「画幅比例」标签靠右同行 */
+.guide-aspect-row { display: flex; align-items: center; gap: 12px; margin: 4px 0 6px; }
+.guide-aspect-row .seg { margin: 0; }
+.guide-aspect-row .guide-aspect-label { margin: 0 0 0 auto; }
+
+.style-card-thumb-box { position: relative; display: block; }
+.style-card-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+/* 画风缩略图右下角放大按钮：查看大图（点击走 lightbox，不触发卡片选中） */
+.style-card-zoom {
+  position: absolute; right: 6px; bottom: 6px;
+  width: 24px; height: 24px; border-radius: 6px; font-size: 12px;
+  display: inline-flex; align-items: center; justify-content: center; cursor: zoom-in;
+  color: #fff; background: #000000a6; opacity: 0; transition: opacity .12s, background .12s;
+}
+.style-card:hover .style-card-zoom { opacity: 1; }
+.style-card-zoom:hover { background: #000000cc; }
+.style-card-thumb-empty {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 9; width: 100%;
+  background: var(--card); color: var(--dim); font-size: 22px;
+}
+.style-card-body { padding: 7px 10px 9px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.style-card-body b { font-size: 12.5px; }
+.style-card-body .dim {
+  font-size: 11.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.style-card-check {
+  position: absolute; top: 8px; right: 8px; color: var(--accent);
+  background: var(--bg); border-radius: 50%; display: inline-flex;
+}
+.style-card-custom { border-style: dashed; }
+
+/* ── 相关材料列表 ── */
+.guide-mat-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.guide-mat-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+.guide-mat-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guide-mat-meta { flex-shrink: 0; font-size: 12px; }
+.guide-mat-empty { margin-top: 14px; }
+
+/* ── 设定预览（终点站）── */
+.guide-review { gap: 12px; }
+.guide-review-row { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); overflow: hidden; }
+.guide-review-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.guide-review-body { padding: 10px 14px; font-size: 13px; line-height: 1.6; }
+.guide-review-body p { margin: 0 0 4px; }
+.guide-review-body p:last-child { margin-bottom: 0; }
+.guide-review-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+@media (max-width: 720px) {
+  .guide-rail { width: 96px; padding: 18px 8px; }
+  .guide-rail-brand span:last-child, .guide-step-label em, .guide-rail-foot { display: none; }
+  .guide-step { justify-content: center; }
+}

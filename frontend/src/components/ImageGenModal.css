@@ -1,0 +1,80 @@
+/* 公共图片生成弹框（封面/角色图/场景图/首帧/视频共用，宿主为 element-preview-card）。
+   结构：.ig-wrap（列）= .ig-cols（行：左表单列 | 右资产面板，各自独立滚动）+ .ig-foot 通栏钉底。
+   无图参考胶囊用 base.css 的 .ref-chips/.ref-chip/.elem-x 共享原子。 */
+.ig-wrap { display: flex; flex-direction: column; width: min(860px, 84vw); max-height: 80vh; }
+/* 右侧资产面板展开：加宽并固定高度，两列独立滚动、底栏位置稳定 */
+.ig-wrap.picking { width: min(1160px, 92vw); height: 80vh; }
+.ig-cols { flex: 1; min-height: 0; display: flex; gap: 0; }
+.ig-main { flex: 1; min-width: 0; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+.ig-head { display: flex; align-items: center; gap: 8px; font-size: 15px; padding-right: 24px; }
+/* 提示词区左右分栏：左=成品图（固定最大宽高，无图=占位，长相一致）| 右=提示词 */
+.ig-prompt-row { display: flex; gap: 4px; align-items: stretch; }
+.ig-shot { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.ig-shot-box { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  background: #0a0a0c; border-radius: 10px; overflow: hidden; }
+.ig-shot-img, .ig-shot-empty { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.ig-shot-img { cursor: zoom-in; }
+.ig-shot-empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--dim); font-size: 13px; }
+.ig-shot-empty svg { width: 40px; height: 40px; opacity: .5; }
+/* 元素下方短标签：最终效果 / 提示词 */
+.ig-cap { font-size: 12px; color: var(--dim); text-align: center; flex-shrink: 0; }
+.ig-prompt-col { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 6px; }
+.ig-label { font-size: 12px; color: var(--dim); letter-spacing: .5px; margin-bottom: 4px; }
+.ig-prompt { display: block; flex: 1; width: 100%; min-height: 214px; font-size: 13px; line-height: 1.6; resize: vertical; }
+.ig-ai-hint { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); }
+/* 参考素材：所有素材统一同尺寸方卡（一行流式）——有图=缩略图、无图=占位、音频=喇叭，长相一致 */
+.ig-ref-cards { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 8px; min-height: 162px; }
+.ig-ref-card { width: 108px; display: flex; flex-direction: column; gap: 4px; }
+.ig-ref-thumb { position: relative; width: 108px; height: 108px; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border); background: #0a0a0c; }
+.ig-ref-thumb:hover { border-color: var(--accent); }
+.ig-ref-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; display: block; }
+.ig-ref-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 30px; }
+.ig-ref-card.off { opacity: .45; }
+.ig-ref-card.off .ig-ref-thumb img { filter: grayscale(1); }
+/* 右上角覆盖 ✕：半透明黑底圆钮，悬停转红（层级压悬停遮罩之上，始终可点） */
+.ig-ref-x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 20px; height: 20px; border: 0;
+  border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.ig-ref-x:hover { background: var(--danger, #e5484d); }
+/* 悬停遮罩：查看 / 直接应用两钮（纵向居中）；无图卡不显示（无 .ig-ref-ov） */
+.ig-ref-ov { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px;
+  align-items: center; justify-content: center; background: rgba(0,0,0,.55); opacity: 0; transition: opacity .12s; }
+.ig-ref-thumb:hover .ig-ref-ov { opacity: 1; }
+.ig-ref-ovbtn { border: 1px solid rgba(255,255,255,.6); background: rgba(0,0,0,.35); color: #fff;
+  font-size: 12px; padding: 3px 12px; border-radius: 6px; cursor: pointer; }
+.ig-ref-ovbtn:hover { background: var(--accent); border-color: var(--accent); }
+.ig-ref-ovbtn.apply { background: var(--accent); border-color: var(--accent); }
+.ig-ref-ovbtn.apply:hover { filter: brightness(1.12); }
+.ig-ref-name { display: flex; align-items: center; justify-content: center; gap: 2px;
+  font-size: 12px; color: var(--text); min-width: 0; }
+.ig-ref-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 首/尾帧「固定」勾选（替代 ✕）：勾选=以首尾帧模式提交 Seedance，取消=仅提示词描述、不锁帧 */
+.ig-ref-lock { display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12px; color: var(--text); cursor: pointer; user-select: none; white-space: nowrap; }
+/* 复位 base 的 `input{width:100%}`：否则 checkbox 盒被拉宽，把文字挤到右边显得间距很大 */
+.ig-ref-lock input { cursor: pointer; accent-color: var(--accent); margin: 0; width: auto; flex: none; }
+/* 未固定：不整体压暗（否则勾选框也被压淡难点回），仅让帧图去色示意「不锁帧」 */
+.ig-ref-card.frame.off { opacity: 1; }
+.ig-ref-card.frame.off .ig-ref-thumb img { filter: grayscale(1) brightness(.82); }
+/* 分镜脚本正文框（镜头弹框顶部）：可编辑 textarea，随内容长高 */
+.ig-script { margin-bottom: 10px; }
+.ig-script-ta { min-height: 58px; font-size: 13px; line-height: 1.6; }
+/* 底部按钮通栏：钉底不随内容滚动，居中一组 tab（.seg，与「正文/视频」同款）；主操作=生成高亮 */
+.ig-foot { position: relative; display: flex; justify-content: center; align-items: center;
+  border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; flex-shrink: 0; }
+/* 底栏左下角附加区（footStart，宿主传入）：如新增素材弹框的「项目设定/系统知识」两开关。
+   绝对定位钉在左侧，不挤动居中的按钮组 */
+.ig-foot-start { position: absolute; left: 0; top: calc(50% + 6px); transform: translateY(-50%);
+  display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text); }
+.ig-foot-start label { display: inline-flex; align-items: center; gap: 5px;
+  cursor: pointer; user-select: none; white-space: nowrap; }
+/* 复位 base 的 `input{width:100%}`，同 .ig-ref-lock */
+.ig-foot-start input { width: auto; flex: none; margin: 0; cursor: pointer; accent-color: var(--accent); }
+.ig-foot-pure { color: var(--accent); }
+.ig-acts .seg-btn { padding: 6px 16px; font-size: 13px; }
+/* 弹窗壳适配：内部两列自滚，壳不滚、放宽 880 上限（:has 特异度更高，压 sections.css 合规） */
+.modal-card.element-preview-card:has(.ig-wrap) { max-width: 1240px; overflow: hidden; }

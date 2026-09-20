@@ -1,0 +1,6 @@
+/* 折叠文本：默认 N 行截断（行数由内联 WebkitLineClamp 控制），展开后全文——不出现内嵌滚动条 */
+.clamp-box { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-box.open { display: block; }
+.linklike { background: none; border: none; color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 2px 0; }
+.linklike:hover { text-decoration: underline; }
